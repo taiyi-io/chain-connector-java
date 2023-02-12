@@ -4,14 +4,14 @@ public class AccessKey {
     class PrivateData {
         int version;
         String id;
-        String encodeMethod;
-        String privateKey;
+        String encode_method;
+        String private_key;
 
         public PrivateData(int version, String id, String encodeMethod, String privateKey) {
             this.version = version;
             this.id = id;
-            this.encodeMethod = encodeMethod;
-            this.privateKey = privateKey;
+            this.encode_method = encodeMethod;
+            this.private_key = privateKey;
         }
 
         public String getId() {
@@ -19,23 +19,23 @@ public class AccessKey {
         }
 
         public String getPrivateKey() {
-            return privateKey;
+            return private_key;
         }
 
         public String getEncodeMethod(){
-            return encodeMethod;
+            return encode_method;
         }
 
     }
 
-    private PrivateData privateData;
+    private PrivateData private_data;
 
     public AccessKey(int version, String id, String encodeMethod, String privateKey) {
-        this.privateData = new PrivateData(version, id, encodeMethod, privateKey);
+        private_data = new PrivateData(version, id, encodeMethod, privateKey);
     }
 
     public PrivateData getPrivateData() {
-        return privateData;
+        return private_data;
     }
 }
 

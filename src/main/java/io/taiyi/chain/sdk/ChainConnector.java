@@ -2,6 +2,9 @@ package io.taiyi.chain.sdk;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.i2p.crypto.eddsa.EdDSAPrivateKey;
+import net.i2p.crypto.eddsa.spec.EdDSAParameterSpec;
+import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -21,6 +24,8 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChainConnector {
     final private static String DefaultAlgorithmName = "Ed25519";
@@ -64,7 +69,6 @@ public class ChainConnector {
 
     public ChainConnector(String accessID, byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeySpecException {
         this._accessID = accessID;
-        this._privateKey = generatePrivateKey(privateKey);
         this._apiBase = "";
         this._domain = "";
         this._nonce = "";
@@ -73,6 +77,10 @@ public class ChainConnector {
         this._localIP = "";
         this._requestTimeout = Constants.DEFAULT_TIMEOUT_IN_SECONDS * 1000;
         this._client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
+        PKCS8EncodedKeySpec encoded = new PKCS8EncodedKeySpec(privateKey);
+        System.out.println(encoded.toString());
+        this._privateKey = new EdDSAPrivateKey(encoded);
+        new EdDSAPrivateKeySpec(privateKey, new EdDSAParameterSpec());
     }
 
     public String getVersion() {
@@ -332,12 +340,13 @@ public class ChainConnector {
     }
 
     private static boolean isHex(String str) {
-        try {
-            Long.parseLong(str, 16);
-            return true;
-        } catch (NumberFormatException e) {
+        final String HEX_PATTERN = "^[0-9a-fA-F]+$";
+        if (0 != (str.length() % 2) ){
             return false;
         }
+        Pattern pattern = Pattern.compile(HEX_PATTERN);
+        Matcher matcher = pattern.matcher(str);
+        return matcher.matches();
     }
 
     private static byte[] hexToBin(String hex) {

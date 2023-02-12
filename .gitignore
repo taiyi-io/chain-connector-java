@@ -36,3 +36,6 @@ bin/
 # Maven
 log/
 target/
+
+# Access Key
+access_key.json
