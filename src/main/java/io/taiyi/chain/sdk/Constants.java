@@ -49,5 +49,20 @@ enum PropertyType {
 }
 
 enum RequestMethod {
-    GET, PUT, POST, DELETE, HEAD, PATCH;
+    GET("GET"),
+    PUT("PUT"),
+    POST("POST"),
+    DELETE("DELETE"),
+    HEAD("HEAD"),
+    PATCH("PATCH");
+
+    private final String value;
+
+    RequestMethod(String value) {
+        this.value = value;
+    }
+
+    public String toString() {
+        return value;
+    }
 }
