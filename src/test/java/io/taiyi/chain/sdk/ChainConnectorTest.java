@@ -10,7 +10,7 @@ import java.nio.file.Paths;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class ChainConnectorTest {
-    final static String host = "";
+    final static String host = "192.168.3.47";
     final static int port = 9100;
     final static String AccessFilename = "access_key.json";
 
@@ -24,8 +24,9 @@ class ChainConnectorTest {
         AccessKey accessKey = gson.fromJson(fileContent, AccessKey.class);
         ChainConnector connector = ChainConnector.NewConnectorFromAccess(accessKey);
         connector.setTrace(true);
+        System.out.printf("connecting to gateway %s:%d...\n", host, port);
         connector.connect(host, port);
-        System.out.printf("connected to gateway %s:%d", host, port);
+        System.out.printf("connected to gateway %s:%d\n", host, port);
         return connector;
     }
 

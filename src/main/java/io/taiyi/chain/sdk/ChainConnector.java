@@ -21,9 +21,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.spec.EdDSAParameterSpec;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -31,6 +29,37 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChainConnector {
+    private static class requestFormat {
+        private String id;
+        private String nonce;
+
+        public requestFormat() {
+
+        }
+    }
+
+    private static class responseFormat {
+        private int error_code;
+        private String message;
+        private Object data;
+    }
+
+    private static class initialSignatureFormat {
+        private String access;
+        private String timestamp;
+        private String nonce;
+        private String signature_algorithm;
+    }
+    private static class requestSignatureFormat {
+        private String id;
+        private String method;
+        private String url;
+        private String body;
+        private String access;
+        private String timestamp;
+        private String nonce;
+        private String signature_algorithm;
+    }
     final private static String DefaultAlgorithmName = "Ed25519";
     private String _accessID = "";
     private PrivateKey _privateKey;
@@ -44,12 +73,6 @@ public class ChainConnector {
     private int _requestTimeout = Constants.DEFAULT_TIMEOUT_IN_SECONDS * 1000;
 
     private HttpClient _client;
-
-    class responseFormat {
-        private int error_code;
-        private String message;
-        private Object data;
-    }
 
     public static ChainConnector NewConnectorFromAccess(AccessKey key) throws Exception {
         String id = key.getPrivateData().getId();
@@ -65,6 +88,7 @@ public class ChainConnector {
             throw new Exception("unsupported encode method: " + encodeMethod);
         }
     }
+
     public static ChainConnector NewConnector(String accessID, byte[] privateKey) throws NoSuchAlgorithmException,
             InvalidKeySpecException {
         return new ChainConnector(accessID, privateKey);
@@ -80,8 +104,7 @@ public class ChainConnector {
         this._localIP = "";
         this._requestTimeout = Constants.DEFAULT_TIMEOUT_IN_SECONDS * 1000;
         this._client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
-        EdDSANamedCurveSpec spec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519);
-        _privateKey = new EdDSAPrivateKey(new EdDSAPrivateKeySpec(privateKey, spec));
+        _privateKey = generatePrivateKey(privateKey);
     }
 
     public String getVersion() {
@@ -132,25 +155,16 @@ public class ChainConnector {
         SimpleDateFormat RFC3339 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
         String timestamp = RFC3339.format(now);
         String signatureAlgorithm = Constants.SIGNATURE_METHOD_ED25519;
-        class signatureFormat {
-            private String access;
-            private String timestamp;
-            private String nonce;
-            private String signature_algorithm;
-        }
-        signatureFormat signaturePayload = new signatureFormat();
+
+        initialSignatureFormat signaturePayload = new initialSignatureFormat();
         signaturePayload.access = _accessID;
         signaturePayload.timestamp = timestamp;
         signaturePayload.nonce = _nonce;
         signaturePayload.signature_algorithm = signatureAlgorithm;
         //generate signature
-        String signature = this.base64Signature(signaturePayload);
+        String signature = base64Signature(signaturePayload);
 
         //generate request payload
-        class requestFormat {
-            private String id;
-            private String nonce;
-        }
         requestFormat requestPayload = new requestFormat();
         requestPayload.id = _accessID;
         requestPayload.nonce = _nonce;
@@ -160,7 +174,18 @@ public class ChainConnector {
         headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE_ALGORITHM, signatureAlgorithm));
         headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE, signature));
 
-        SessionResponse resp = (SessionResponse) rawRequest(RequestMethod.POST, "/sessions/", headers, requestPayload);
+        final String url = mapToAPI("/sessions/");
+        HttpRequest.Builder builder = HttpRequest.newBuilder(new URI(url));
+        builder.setHeader(Constants.HEADER_CONTENT_TYPE, Constants.CONTENT_TYPE_JSON);
+        Gson gson = new Gson();
+        String body = gson.toJson(requestPayload);
+        builder.method(RequestMethod.POST.toString(), HttpRequest.BodyPublishers.ofString(body));
+        for (Pair<String, String> header : headers) {
+            builder.header(header.getKey(), header.getValue());
+        }
+        builder.headers("Pragma", "no-cache", "Cache-Control", "no-cache");
+        HttpRequest request = builder.build();
+        SessionResponse resp = (SessionResponse) getResult(request);
         _sessionID = resp.getSession();
         _timeout = resp.getTimeout();
         _localIP = resp.getAddress();
@@ -180,10 +205,9 @@ public class ChainConnector {
     }
 
     //private methods below
-    private PrivateKey generatePrivateKey(byte[] privateKeyBytes) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
-        KeyFactory keyFactory = KeyFactory.getInstance(DefaultAlgorithmName);
-        return keyFactory.generatePrivate(keySpec);
+    private PrivateKey generatePrivateKey(byte[] privateKeyBytes) {
+        EdDSANamedCurveSpec spec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519);
+        return new EdDSAPrivateKey(new EdDSAPrivateKeySpec(privateKeyBytes, spec));
     }
 
     private String newNonce() {
@@ -197,8 +221,10 @@ public class ChainConnector {
             InvalidKeyException, InvalidAlgorithmParameterException {
         Gson gson = new GsonBuilder().create();
         String marshalled = gson.toJson(obj);
+        if (_trace) {
+            System.out.printf("try signature payload:\n%s\n", marshalled);
+        }
         byte[] contentBytes = marshalled.getBytes("UTF-8");
-        System.out.println("try signature...");
         EdDSAEngine engine = new EdDSAEngine();
         engine.initSign(_privateKey);
         engine.setParameter(EdDSAEngine.ONE_SHOT_MODE);
@@ -217,6 +243,9 @@ public class ChainConnector {
             body = gson.toJson(payload);
         } else {
             body = "";
+        }
+        if (_trace) {
+            System.out.printf("body:\n%s\n", body);
         }
         builder.method(method.toString(), HttpRequest.BodyPublishers.ofString(body));
         for (Pair<String, String> header : headers) {
@@ -286,17 +315,7 @@ public class ChainConnector {
         URL urlObject = new URL(url);
         Date now = new Date();
         String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(now);
-        class signatureFormat {
-            private String id;
-            private String method;
-            private String url;
-            private String body;
-            private String access;
-            private String timestamp;
-            private String nonce;
-            private String signature_algorithm;
-        }
-        signatureFormat signaturePayload = new signatureFormat();
+        requestSignatureFormat signaturePayload = new requestSignatureFormat();
         signaturePayload.id = _sessionID;
         signaturePayload.method = method.toString().toUpperCase();
         signaturePayload.url = urlObject.getPath();
@@ -345,7 +364,7 @@ public class ChainConnector {
 
     private static boolean isHex(String str) {
         final String HEX_PATTERN = "^[0-9a-fA-F]+$";
-        if (0 != (str.length() % 2) ){
+        if (0 != (str.length() % 2)) {
             return false;
         }
         Pattern pattern = Pattern.compile(HEX_PATTERN);
