@@ -2,8 +2,10 @@ package io.taiyi.chain.sdk;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
-import net.i2p.crypto.eddsa.spec.EdDSAParameterSpec;
+import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
+import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable;
 import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -19,6 +21,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
+import java.security.spec.EdDSAParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.text.SimpleDateFormat;
@@ -77,10 +80,8 @@ public class ChainConnector {
         this._localIP = "";
         this._requestTimeout = Constants.DEFAULT_TIMEOUT_IN_SECONDS * 1000;
         this._client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
-        PKCS8EncodedKeySpec encoded = new PKCS8EncodedKeySpec(privateKey);
-        System.out.println(encoded.toString());
-        this._privateKey = new EdDSAPrivateKey(encoded);
-        new EdDSAPrivateKeySpec(privateKey, new EdDSAParameterSpec());
+        EdDSANamedCurveSpec spec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519);
+        _privateKey = new EdDSAPrivateKey(new EdDSAPrivateKeySpec(privateKey, spec));
     }
 
     public String getVersion() {
@@ -193,14 +194,16 @@ public class ChainConnector {
     }
 
     private String base64Signature(Object obj) throws SignatureException, UnsupportedEncodingException,
-            NoSuchAlgorithmException, InvalidKeyException {
+            InvalidKeyException, InvalidAlgorithmParameterException {
         Gson gson = new GsonBuilder().create();
         String marshalled = gson.toJson(obj);
         byte[] contentBytes = marshalled.getBytes("UTF-8");
-        Signature signature = Signature.getInstance(DefaultAlgorithmName);
-        signature.initSign(_privateKey);
-        signature.update(contentBytes);
-        byte[] signed = signature.sign();
+        System.out.println("try signature...");
+        EdDSAEngine engine = new EdDSAEngine();
+        engine.initSign(_privateKey);
+        engine.setParameter(EdDSAEngine.ONE_SHOT_MODE);
+        engine.update(contentBytes);
+        byte[] signed = engine.sign();
         return Base64.getEncoder().encodeToString(signed);
     }
 
@@ -267,7 +270,8 @@ public class ChainConnector {
     }
 
     private Boolean peekRequest(RequestMethod method, String url) throws IOException,
-            NoSuchAlgorithmException, URISyntaxException, InterruptedException, SignatureException, InvalidKeyException {
+            NoSuchAlgorithmException, URISyntaxException, InterruptedException, SignatureException,
+            InvalidKeyException, InvalidAlgorithmParameterException {
         HttpRequest request = prepareRequest(method, url, null);
         HttpResponse<String> resp = fetch(request);
         return 200 == resp.statusCode();
@@ -278,7 +282,7 @@ public class ChainConnector {
     }
 
     private HttpRequest prepareRequest(RequestMethod method, String url, Object payload) throws MalformedURLException,
-            NoSuchAlgorithmException, URISyntaxException, UnsupportedEncodingException, SignatureException, InvalidKeyException {
+            NoSuchAlgorithmException, URISyntaxException, UnsupportedEncodingException, SignatureException, InvalidKeyException, InvalidAlgorithmParameterException {
         URL urlObject = new URL(url);
         Date now = new Date();
         String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(now);
