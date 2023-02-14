@@ -2,7 +2,6 @@ package io.taiyi.chain.sdk;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
@@ -14,7 +13,6 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,32 +37,44 @@ public class ChainConnector {
 
         }
     }
-    private interface response{
+
+    private interface responseStatus {
         int getErrorCode();
+
         String getErrorMessage();
     }
-    private static class responseWithoutPayload implements response {
+
+    private static class responseBase implements responseStatus {
         private int error_code;
         private String message;
-        public int getErrorCode(){
+
+        public int getErrorCode() {
             return error_code;
         }
-        public String getErrorMessage(){
+
+        public String getErrorMessage() {
             return message;
         }
     }
 
-    private static class responseWithPayload<T> implements response {
-        private int error_code;
-        private String message;
-        private T data;
-        public int getErrorCode(){
-            return error_code;
-        }
-        public String getErrorMessage(){
-            return message;
-        }
-        public T getData(){
+    //    private static class responseStatusWithPayload<T> implements responseStatus {
+//        private int error_code;
+//        private String message;
+//        private T data;
+//        public int getErrorCode(){
+//            return error_code;
+//        }
+//        public String getErrorMessage(){
+//            return message;
+//        }
+//        public T getData(){
+//            return data;
+//        }
+//    }
+    private static class sessionResponse extends responseBase {
+        private SessionData data;
+
+        public SessionData getData() {
             return data;
         }
     }
@@ -75,6 +85,7 @@ public class ChainConnector {
         private String nonce;
         private String signature_algorithm;
     }
+
     private static class requestSignatureFormat {
         private String id;
         private String method;
@@ -100,6 +111,8 @@ public class ChainConnector {
 
     private final HttpClient _client;
 
+    private final Gson compactJSONMarshaller = new GsonBuilder().disableHtmlEscaping().create();
+
     public static ChainConnector NewConnectorFromAccess(AccessKey key) throws Exception {
         String id = key.getPrivateData().getId();
         String encodeMethod = key.getPrivateData().getEncodeMethod();
@@ -109,7 +122,7 @@ public class ChainConnector {
                 throw new Exception("invalid key format");
             }
             byte[] decoded = Hex.decodeHex(privateKey);
-            if (decoded.length < requiredPrivateKeyLength){
+            if (decoded.length < requiredPrivateKeyLength) {
                 throw new Exception("insufficient private key length");
             }
             return NewConnector(id, Arrays.copyOfRange(decoded, 0, requiredPrivateKeyLength));
@@ -118,7 +131,7 @@ public class ChainConnector {
         }
     }
 
-    public static ChainConnector NewConnector(String accessID, byte[] privateKey){
+    public static ChainConnector NewConnector(String accessID, byte[] privateKey) {
         return new ChainConnector(accessID, privateKey);
     }
 
@@ -200,15 +213,16 @@ public class ChainConnector {
         headers.add(Pair.of(Constants.HEADER_NAME_TIMESTAMP, timestamp));
         headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE_ALGORITHM, signatureAlgorithm));
         headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE, signature));
-        SessionData resp = rawRequest(RequestMethod.POST, "/sessions/", headers,
-                requestPayload);
-        _sessionID = resp.getSession();
-        _timeout = resp.getTimeout();
-        _localIP = resp.getAddress();
+        sessionResponse resp = rawRequest(RequestMethod.POST, "/sessions/", headers,
+                requestPayload, sessionResponse.class);
+
+        _sessionID = resp.getData().getSession();
+        _timeout = resp.getData().getTimeout();
+        _localIP = resp.getData().getAddress();
         if (this._trace) {
-            System.out.printf("<Chain-DEBUG> [%s]: new session allocated", _sessionID);
-            System.out.printf("<Chain-DEBUG> [%s]: session timeout in %d second(s)", _sessionID, _timeout);
-            System.out.printf("<Chain-DEBUG> [%s]: local address %s", _sessionID, _localIP);
+            System.out.printf("<Chain-DEBUG> [%s]: new session allocated\n", _sessionID);
+            System.out.printf("<Chain-DEBUG> [%s]: session timeout in %d second(s)\n", _sessionID, _timeout);
+            System.out.printf("<Chain-DEBUG> [%s]: local address %s\n", _sessionID, _localIP);
         }
     }
 
@@ -216,7 +230,7 @@ public class ChainConnector {
         final String url = mapToAPI("/sessions/");
         doRequest(RequestMethod.PUT, url);
         if (this._trace) {
-            System.out.printf("<Chain-DEBUG> [%s]: keep alive", _sessionID);
+            System.out.printf("<Chain-DEBUG> [%s]: keep alive\n", _sessionID);
         }
     }
 
@@ -235,30 +249,32 @@ public class ChainConnector {
 
     private String base64Signature(Object obj) throws SignatureException,
             InvalidKeyException, InvalidAlgorithmParameterException {
-        Gson gson = new GsonBuilder().create();
-        String marshalled = gson.toJson(obj);
+        String payload = compactJSONMarshaller.toJson(obj);
         if (_trace) {
-            System.out.printf("try signature payload:\n%s\n", marshalled);
+            System.out.printf("<Chain-DEBUG> [%s]: signature payload\n%s\n", _sessionID, compactJSONMarshaller.toJson(payload));
         }
-        byte[] contentBytes = marshalled.getBytes(StandardCharsets.UTF_8);
+        byte[] contentBytes = payload.getBytes(StandardCharsets.UTF_8);
         EdDSAEngine engine = new EdDSAEngine();
         engine.initSign(_privateKey);
         engine.setParameter(EdDSAEngine.ONE_SHOT_MODE);
         engine.update(contentBytes);
         byte[] signed = engine.sign();
-        return Base64.getEncoder().encodeToString(signed);
+        String signature = Base64.getEncoder().encodeToString(signed);
+        if (this._trace) {
+            System.out.printf("<Chain-DEBUG> [%s]: signature: \n%s\n", _sessionID, signature);
+        }
+        return signature;
     }
 
-    private <T> T  rawRequest(RequestMethod method, String path, List<Pair<String, String>> headers,
-                              Object payload) throws Exception {
+    private <T extends responseStatus> T rawRequest(RequestMethod method, String path, List<Pair<String, String>> headers,
+                                                    Object payload, Class<T> classofT) throws Exception {
         final String url = mapToAPI(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(new URI(url));
         builder.timeout(Duration.ofMillis(_requestTimeout));
         builder.setHeader(Constants.HEADER_CONTENT_TYPE, Constants.CONTENT_TYPE_JSON);
         String body;
         if (null != payload) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            body = gson.toJson(payload);
+            body = compactJSONMarshaller.toJson(payload);
         } else {
             body = "";
         }
@@ -271,8 +287,7 @@ public class ChainConnector {
         }
         builder.headers("Pragma", "no-cache", "Cache-Control", "no-cache");
         HttpRequest request = builder.build();
-        T data = getResult(request);
-        return data;
+        return getResult(request, classofT);
     }
 
     private void doRequest(RequestMethod method, String url) throws Exception {
@@ -285,34 +300,31 @@ public class ChainConnector {
         validateResult(request);
     }
 
-    private <T> T fetchResponse(RequestMethod method, String url) throws Exception {
+    private <T extends responseStatus> T fetchResponse(RequestMethod method, String url, Class<T> classofT) throws Exception {
         HttpRequest request = prepareRequest(method, url, null);
-        return getResult(request);
+        return getResult(request, classofT);
     }
 
-    private <T> T fetchResponseWithPayload(RequestMethod method, String url, Object payload) throws Exception {
+    private <T extends responseStatus> T fetchResponseWithPayload(RequestMethod method, String url, Object payload, Class<T> classofT) throws Exception {
         HttpRequest request = prepareRequest(method, url, payload);
         validateResult(request);
-        return getResult(request);
+        return getResult(request, classofT);
     }
 
     private void validateResult(HttpRequest request) throws Exception {
-        parseResponse(request);
+        parseResponse(request, responseBase.class);
     }
 
-    private <T> T getResult(HttpRequest request) throws Exception {
-        responseWithPayload<T> resp = parseResponse(request);
-        return resp.getData();
+    private <T extends responseStatus> T getResult(HttpRequest request, Class<T> classofT) throws Exception {
+        return parseResponse(request, classofT);
     }
 
-    private <T extends response> T parseResponse(HttpRequest request) throws Exception {
+    private <T extends responseStatus> T parseResponse(HttpRequest request, Class<T> classofT) throws Exception {
         HttpResponse<String> resp = fetch(request);
         if (200 != resp.statusCode()) {
             throw new Exception(String.format("fetch result failed with status %d", resp.statusCode()));
         }
-        Gson gson = new Gson();
-        Type t = new TypeToken<T>(){}.getType();
-        T respPayload = (T) gson.fromJson(resp.body(), t.getClass());
+        T respPayload = compactJSONMarshaller.fromJson(resp.body(), classofT);
         if (0 != respPayload.getErrorCode()) {
             throw new Exception(String.format("fetch failed: %s", respPayload.getErrorMessage()));
         }
@@ -336,12 +348,13 @@ public class ChainConnector {
             InvalidKeyException, InvalidAlgorithmParameterException {
         URL urlObject = new URL(url);
         Date now = new Date();
-        String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(now);
+
+        SimpleDateFormat RFC3339 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+        String timestamp = RFC3339.format(now);
         requestSignatureFormat signaturePayload = new requestSignatureFormat();
         signaturePayload.id = _sessionID;
         signaturePayload.method = method.toString().toUpperCase();
         signaturePayload.url = urlObject.getPath();
-        signaturePayload.body = "";
         signaturePayload.access = _accessID;
         signaturePayload.timestamp = timestamp;
         signaturePayload.nonce = _nonce;
@@ -353,8 +366,7 @@ public class ChainConnector {
         if (null != payload) {
             //has payload
             builder.setHeader(Constants.HEADER_CONTENT_TYPE, Constants.CONTENT_TYPE_JSON);
-            Gson gson = new GsonBuilder().create();
-            bodyPayload = gson.toJson(payload);
+            bodyPayload = compactJSONMarshaller.toJson(payload);
             builder.method(signaturePayload.method, HttpRequest.BodyPublishers.ofString(bodyPayload));
         } else {
             bodyPayload = "";
@@ -363,16 +375,28 @@ public class ChainConnector {
 
         if (method == RequestMethod.POST || method == RequestMethod.PUT || method == RequestMethod.DELETE || method == RequestMethod.PATCH) {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(bodyPayload.getBytes(StandardCharsets.UTF_8));
-            signaturePayload.body = Base64.getEncoder().encodeToString(hash);
+//            byte[] hash = digest.digest(bodyPayload.getBytes(StandardCharsets.UTF_8));
+            byte[] rawInput = bodyPayload.getBytes();
+            if (_trace) {
+                System.out.printf("<Chain-DEBUG> [%s]: body payload\n%s\n", _sessionID, Hex.encodeHexString(rawInput));
+            }
+            byte[] hash = digest.digest(rawInput);
+            if (_trace) {
+                System.out.printf("<Chain-DEBUG> [%s]: body hash\n%s\n", _sessionID, Hex.encodeHexString(hash));
+            }
+            signaturePayload.body = new String(Base64.getEncoder().encode(hash), StandardCharsets.US_ASCII);
+        } else {
+            signaturePayload.body = "";
         }
         String signature = base64Signature(signaturePayload);
-        builder.headers("Pragma", "no-cache", "Cache-Control", "no-cache", Constants.HEADER_NAME_SESSION, _sessionID, Constants.HEADER_NAME_TIMESTAMP, timestamp, Constants.HEADER_NAME_SIGNATURE_ALGORITHM, Constants.SIGNATURE_METHOD_ED25519, Constants.HEADER_NAME_SIGNATURE, signature);
-        if (this._trace) {
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.printf("<Chain-DEBUG> [%s]: signature payload\n%s", _sessionID, gson.toJson(signaturePayload));
-            System.out.printf("<Chain-DEBUG> [%s]: signature: %s", _sessionID, signature);
-        }
+        builder.headers(
+                "Pragma", "no-cache",
+                "Cache-Control", "no-cache",
+                Constants.HEADER_NAME_SESSION, _sessionID,
+                Constants.HEADER_NAME_TIMESTAMP, timestamp,
+                Constants.HEADER_NAME_SIGNATURE_ALGORITHM, Constants.SIGNATURE_METHOD_ED25519,
+                Constants.HEADER_NAME_SIGNATURE, signature);
+
         return builder.build();
     }
 
