@@ -10,7 +10,9 @@ import java.nio.file.Paths;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class ChainConnectorTest {
-    final static String host = "192.168.3.47";
+//    final static String host = "192.168.3.47";
+
+    final static String host = "192.168.25.223";
     final static int port = 9100;
     final static String AccessFilename = "access_key.json";
 

@@ -1,6 +1,6 @@
 package io.taiyi.chain.sdk;
 
-public class SessionResponse {
+public class SessionData {
     private String session;
     private int timeout;
     private String address;

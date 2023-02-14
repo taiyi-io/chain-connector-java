@@ -2,16 +2,19 @@ package io.taiyi.chain.sdk;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable;
 import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -21,7 +24,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -37,11 +39,34 @@ public class ChainConnector {
 
         }
     }
-
-    private static class responseFormat {
+    private interface response{
+        int getErrorCode();
+        String getErrorMessage();
+    }
+    private static class responseWithoutPayload implements response {
         private int error_code;
         private String message;
-        private Object data;
+        public int getErrorCode(){
+            return error_code;
+        }
+        public String getErrorMessage(){
+            return message;
+        }
+    }
+
+    private static class responseWithPayload<T> implements response {
+        private int error_code;
+        private String message;
+        private T data;
+        public int getErrorCode(){
+            return error_code;
+        }
+        public String getErrorMessage(){
+            return message;
+        }
+        public T getData(){
+            return data;
+        }
     }
 
     private static class initialSignatureFormat {
@@ -60,19 +85,20 @@ public class ChainConnector {
         private String nonce;
         private String signature_algorithm;
     }
-    final private static String DefaultAlgorithmName = "Ed25519";
-    private String _accessID = "";
-    private PrivateKey _privateKey;
-    private String _apiBase = "";
-    private String _domain = "";
-    private String _nonce = "";
-    private String _sessionID = "";
-    private int _timeout = 0;
-    private String _localIP = "";
+
+    final private static int requiredPrivateKeyLength = 32;
+    private final String _accessID;
+    private final PrivateKey _privateKey;
+    private String _apiBase;
+    private String _domain;
+    private String _nonce;
+    private String _sessionID;
+    private int _timeout;
+    private String _localIP;
     private boolean _trace = false;
     private int _requestTimeout = Constants.DEFAULT_TIMEOUT_IN_SECONDS * 1000;
 
-    private HttpClient _client;
+    private final HttpClient _client;
 
     public static ChainConnector NewConnectorFromAccess(AccessKey key) throws Exception {
         String id = key.getPrivateData().getId();
@@ -82,19 +108,21 @@ public class ChainConnector {
             if (!isHex(privateKey)) {
                 throw new Exception("invalid key format");
             }
-            byte[] decoded = slice(hexToBin(privateKey), 0, 32);
-            return NewConnector(id, decoded);
+            byte[] decoded = Hex.decodeHex(privateKey);
+            if (decoded.length < requiredPrivateKeyLength){
+                throw new Exception("insufficient private key length");
+            }
+            return NewConnector(id, Arrays.copyOfRange(decoded, 0, requiredPrivateKeyLength));
         } else {
             throw new Exception("unsupported encode method: " + encodeMethod);
         }
     }
 
-    public static ChainConnector NewConnector(String accessID, byte[] privateKey) throws NoSuchAlgorithmException,
-            InvalidKeySpecException {
+    public static ChainConnector NewConnector(String accessID, byte[] privateKey){
         return new ChainConnector(accessID, privateKey);
     }
 
-    public ChainConnector(String accessID, byte[] privateKey) throws NoSuchAlgorithmException, InvalidKeySpecException {
+    public ChainConnector(String accessID, byte[] privateKey) {
         this._accessID = accessID;
         this._apiBase = "";
         this._domain = "";
@@ -102,7 +130,6 @@ public class ChainConnector {
         this._sessionID = "";
         this._timeout = 0;
         this._localIP = "";
-        this._requestTimeout = Constants.DEFAULT_TIMEOUT_IN_SECONDS * 1000;
         this._client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
         _privateKey = generatePrivateKey(privateKey);
     }
@@ -169,30 +196,19 @@ public class ChainConnector {
         requestPayload.id = _accessID;
         requestPayload.nonce = _nonce;
 
-        ArrayList<Pair<String, String>> headers = new ArrayList<Pair<String, String>>();
+        ArrayList<Pair<String, String>> headers = new ArrayList<>();
         headers.add(Pair.of(Constants.HEADER_NAME_TIMESTAMP, timestamp));
         headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE_ALGORITHM, signatureAlgorithm));
         headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE, signature));
-
-        final String url = mapToAPI("/sessions/");
-        HttpRequest.Builder builder = HttpRequest.newBuilder(new URI(url));
-        builder.setHeader(Constants.HEADER_CONTENT_TYPE, Constants.CONTENT_TYPE_JSON);
-        Gson gson = new Gson();
-        String body = gson.toJson(requestPayload);
-        builder.method(RequestMethod.POST.toString(), HttpRequest.BodyPublishers.ofString(body));
-        for (Pair<String, String> header : headers) {
-            builder.header(header.getKey(), header.getValue());
-        }
-        builder.headers("Pragma", "no-cache", "Cache-Control", "no-cache");
-        HttpRequest request = builder.build();
-        SessionResponse resp = (SessionResponse) getResult(request);
+        SessionData resp = rawRequest(RequestMethod.POST, "/sessions/", headers,
+                requestPayload);
         _sessionID = resp.getSession();
         _timeout = resp.getTimeout();
         _localIP = resp.getAddress();
         if (this._trace) {
             System.out.printf("<Chain-DEBUG> [%s]: new session allocated", _sessionID);
             System.out.printf("<Chain-DEBUG> [%s]: session timeout in %d second(s)", _sessionID, _timeout);
-            System.out.printf("<Chain-DEBUG> [%s]: local address", _sessionID, _localIP);
+            System.out.printf("<Chain-DEBUG> [%s]: local address %s", _sessionID, _localIP);
         }
     }
 
@@ -217,14 +233,14 @@ public class ChainConnector {
         return RandomStringUtils.random(nonceLength, useLetters, useNumbers);
     }
 
-    private String base64Signature(Object obj) throws SignatureException, UnsupportedEncodingException,
+    private String base64Signature(Object obj) throws SignatureException,
             InvalidKeyException, InvalidAlgorithmParameterException {
         Gson gson = new GsonBuilder().create();
         String marshalled = gson.toJson(obj);
         if (_trace) {
             System.out.printf("try signature payload:\n%s\n", marshalled);
         }
-        byte[] contentBytes = marshalled.getBytes("UTF-8");
+        byte[] contentBytes = marshalled.getBytes(StandardCharsets.UTF_8);
         EdDSAEngine engine = new EdDSAEngine();
         engine.initSign(_privateKey);
         engine.setParameter(EdDSAEngine.ONE_SHOT_MODE);
@@ -233,9 +249,11 @@ public class ChainConnector {
         return Base64.getEncoder().encodeToString(signed);
     }
 
-    private Object rawRequest(RequestMethod method, String path, List<Pair<String, String>> headers, Object payload) throws Exception {
+    private <T> T  rawRequest(RequestMethod method, String path, List<Pair<String, String>> headers,
+                              Object payload) throws Exception {
         final String url = mapToAPI(path);
         HttpRequest.Builder builder = HttpRequest.newBuilder(new URI(url));
+        builder.timeout(Duration.ofMillis(_requestTimeout));
         builder.setHeader(Constants.HEADER_CONTENT_TYPE, Constants.CONTENT_TYPE_JSON);
         String body;
         if (null != payload) {
@@ -253,7 +271,8 @@ public class ChainConnector {
         }
         builder.headers("Pragma", "no-cache", "Cache-Control", "no-cache");
         HttpRequest request = builder.build();
-        return getResult(request);
+        T data = getResult(request);
+        return data;
     }
 
     private void doRequest(RequestMethod method, String url) throws Exception {
@@ -266,12 +285,12 @@ public class ChainConnector {
         validateResult(request);
     }
 
-    private Object fetchResponse(RequestMethod method, String url) throws Exception {
+    private <T> T fetchResponse(RequestMethod method, String url) throws Exception {
         HttpRequest request = prepareRequest(method, url, null);
         return getResult(request);
     }
 
-    private Object fetchResponseWithPayload(RequestMethod method, String url, Object payload) throws Exception {
+    private <T> T fetchResponseWithPayload(RequestMethod method, String url, Object payload) throws Exception {
         HttpRequest request = prepareRequest(method, url, payload);
         validateResult(request);
         return getResult(request);
@@ -281,19 +300,21 @@ public class ChainConnector {
         parseResponse(request);
     }
 
-    private Object getResult(HttpRequest request) throws Exception {
-        return parseResponse(request).data;
+    private <T> T getResult(HttpRequest request) throws Exception {
+        responseWithPayload<T> resp = parseResponse(request);
+        return resp.getData();
     }
 
-    private responseFormat parseResponse(HttpRequest request) throws Exception {
+    private <T extends response> T parseResponse(HttpRequest request) throws Exception {
         HttpResponse<String> resp = fetch(request);
         if (200 != resp.statusCode()) {
             throw new Exception(String.format("fetch result failed with status %d", resp.statusCode()));
         }
-        Gson gson = new GsonBuilder().create();
-        responseFormat respPayload = gson.fromJson(resp.body(), responseFormat.class);
-        if (0 != respPayload.error_code) {
-            throw new Exception(String.format("fetch failed: %s", respPayload.message));
+        Gson gson = new Gson();
+        Type t = new TypeToken<T>(){}.getType();
+        T respPayload = (T) gson.fromJson(resp.body(), t.getClass());
+        if (0 != respPayload.getErrorCode()) {
+            throw new Exception(String.format("fetch failed: %s", respPayload.getErrorMessage()));
         }
         return respPayload;
     }
@@ -311,7 +332,8 @@ public class ChainConnector {
     }
 
     private HttpRequest prepareRequest(RequestMethod method, String url, Object payload) throws MalformedURLException,
-            NoSuchAlgorithmException, URISyntaxException, UnsupportedEncodingException, SignatureException, InvalidKeyException, InvalidAlgorithmParameterException {
+            NoSuchAlgorithmException, URISyntaxException, UnsupportedEncodingException, SignatureException,
+            InvalidKeyException, InvalidAlgorithmParameterException {
         URL urlObject = new URL(url);
         Date now = new Date();
         String timestamp = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(now);
@@ -326,7 +348,7 @@ public class ChainConnector {
         signaturePayload.signature_algorithm = Constants.SIGNATURE_METHOD_ED25519;
 
         HttpRequest.Builder builder = HttpRequest.newBuilder().uri(new URI(url));
-        builder.timeout(Duration.ofMillis(this._requestTimeout));
+        builder.timeout(Duration.ofMillis(_requestTimeout));
         String bodyPayload;
         if (null != payload) {
             //has payload
@@ -372,12 +394,5 @@ public class ChainConnector {
         return matcher.matches();
     }
 
-    private static byte[] hexToBin(String hex) {
-        return hex.getBytes(StandardCharsets.UTF_8);
-    }
-
-    private static byte[] slice(byte[] array, int start, int end) {
-        return Arrays.copyOfRange(array, start, end);
-    }
-};
+}
 
