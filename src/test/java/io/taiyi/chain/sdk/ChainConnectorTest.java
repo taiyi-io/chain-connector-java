@@ -10,9 +10,9 @@ import java.nio.file.Paths;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class ChainConnectorTest {
-    final static String host = "192.168.3.47";
+//    final static String host = "192.168.3.47";
 
-//    final static String host = "192.168.25.223";
+    final static String host = "192.168.25.223";
     final static int port = 9100;
     final static String AccessFilename = "access_key.json";
 
@@ -45,4 +45,17 @@ class ChainConnectorTest {
         }
     }
 
+    @Test
+    void getStatus() {
+        try{
+            System.out.println("test case: get status begin...");
+            ChainConnector conn = getConnector();
+            ChainStatus status = conn.getStatus();
+            System.out.println(status);
+            System.out.println("test case: get status passed");
+        }catch (Exception e){
+            System.out.println(e);
+            fail(e.getCause());
+        }
+    }
 }

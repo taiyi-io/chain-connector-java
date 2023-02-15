@@ -78,6 +78,84 @@ public class ChainConnector {
             return data;
         }
     }
+    private static class statusResponse extends responseBase{
+        private ChainStatus data;
+        ChainStatus getData(){
+            return data;
+        }
+    }
+    private static class transactionDataResponse extends responseBase {
+        private TransactionData data;
+
+        public TransactionData getData() {
+            return data;
+        }
+    }
+    private static class blockDataResponse extends responseBase {
+        private BlockData data;
+
+        public BlockData getData() {
+            return data;
+        }
+    }
+    private static class SchemaDataResponse extends responseBase {
+        private DocumentSchema data;
+
+        DocumentSchema getData() {
+            return data;
+        }
+    }
+
+    private static class schemaLogResponse extends responseBase{
+        private LogRecords data;
+        LogRecords getData(){
+            return data;
+        }
+    }
+    private static class documentResponse extends responseBase {
+        private String data;
+
+        public String getData() {
+            return data;
+        }
+    }
+    private static class logRecordsResponse extends responseBase {
+        private LogRecords data;
+
+        public LogRecords getData() {
+            return data;
+        }
+    }
+    private static class contractInfoResponse extends responseBase{
+        private ContractInfo data;
+        public ContractInfo getData(){
+            return data;
+        }
+    }
+    private static class contractData{
+        private String name;
+        private String content;
+        public String getName(){
+            return name;
+        }
+        public String getContent(){
+            return content;
+        }
+    }
+    private static class contractResponse extends responseBase {
+        private contractData data;
+        public contractData getData() {
+            return data;
+        }
+    }
+
+    private static class actorsResponse extends responseBase {
+        private ActorPrivileges[] data;
+
+        public ActorPrivileges[] getData() {
+            return data;
+        }
+    }
 
     private static class initialSignatureFormat {
         private String access;
@@ -232,6 +310,149 @@ public class ChainConnector {
         if (this._trace) {
             System.out.printf("<Chain-DEBUG> [%s]: keep alive\n", _sessionID);
         }
+    }
+
+    public ChainStatus getStatus() throws Exception{
+        final String url = mapToDomain("/status");
+        statusResponse resp = fetchResponse(RequestMethod.GET, url, statusResponse.class);
+        return resp.getData();
+    }
+
+    public blockDataResponse getBlock(String blockID) throws Exception {
+        if (blockID == null || blockID.isEmpty()) {
+            throw new Exception("block ID required");
+        }
+
+        final String url = mapToDomain("/blocks/" + blockID);
+        blockDataResponse resp = fetchResponse(RequestMethod.GET, url, blockDataResponse.class);
+        return resp;
+    }
+
+    public TransactionData getTransaction(String blockID, String transID) throws Exception {
+        if (blockID == null || blockID.isEmpty()) {
+            throw new Exception("block ID required");
+        }
+        if (transID == null || transID.isEmpty()) {
+            throw new Exception("transaction ID required");
+        }
+        String url = mapToDomain("/blocks/" + blockID + "/transactions/" + transID);
+        transactionDataResponse resp = fetchResponse(RequestMethod.GET, url, transactionDataResponse.class);
+        return resp.getData();
+    }
+
+    public boolean hasSchema(String schemaName) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName);
+        return peekRequest(RequestMethod.HEAD, url);
+    }
+
+    public DocumentSchema getSchema(String schemaName) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName);
+        SchemaDataResponse resp = fetchResponse(RequestMethod.GET, url, SchemaDataResponse.class);
+        return resp.getData();
+    }
+    /**
+     * Get trace log of a schema
+     * @param {string} schemaName schema name
+     * @returns {LogRecords} list of log records
+     */
+    public LogRecords getSchemaLog(String schemaName) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        final String url = mapToDomain("/schemas/" + schemaName + "/logs/");
+        schemaLogResponse resp = fetchResponse(RequestMethod.GET, url, schemaLogResponse.class);
+        return resp.getData();
+    }
+    /**
+     * Get meta actors of a schema
+     * @param {string} schemaName schema name
+     * @returns {ActorPrivileges[]} list of actor privileges
+     */
+    public ActorPrivileges[] getSchemaActors(String schemaName) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        final String url = mapToDomain("/schemas/" + schemaName + "/actors/");
+        actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
+        return resp.getData();
+    }
+
+    public String getDocument(String schemaName, String docID) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new Exception("document ID required");
+        }
+        final String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID);
+        documentResponse resp = fetchResponse(RequestMethod.GET, url, documentResponse.class);
+        return resp.getData();
+    }
+
+    public LogRecords getDocumentLogs(String schemaName, String docID) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new Exception("document ID required");
+        }
+
+        final String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID + "/logs/");
+        logRecordsResponse resp = fetchResponse(RequestMethod.GET, url, logRecordsResponse.class);
+        return resp.getData();
+    }
+
+    public ActorPrivileges[] getDocumentActors(String schemaName, String docID) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new Exception("document ID required");
+        }
+
+        final String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID + "/actors/");
+        actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
+        return resp.getData();
+    }
+
+    public ContractDefine getContract(String contractName) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new Exception("contract name required");
+        }
+        String url = this.mapToDomain("/contracts/" + contractName);
+        contractResponse resp = this.fetchResponse(RequestMethod.GET, url, contractResponse.class);
+        ContractDefine define = compactJSONMarshaller.fromJson(resp.getData().getContent(), ContractDefine.class);
+        return define;
+    }
+    /**
+     * Get detail info of a contract
+     * @param contractName target contract name
+     * @return ContractInfo contract info
+     * @throws Exception if contract name is not provided or API call fails
+     */
+    public ContractInfo getContractInfo(String contractName) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new Exception("contract name required");
+        }
+        String url = this.mapToDomain("/contracts/" + contractName + "/info/");
+        contractInfoResponse resp = this.fetchResponse(RequestMethod.GET, url, contractInfoResponse.class);
+        return resp.getData();
+    }
+
+    public ActorPrivileges[] getContractActors(String contractName) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new Exception("contract name required");
+        }
+
+        String url = mapToDomain("/contracts/" + contractName + "/actors/");
+        actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
+        return resp.getData();
     }
 
     //private methods below
