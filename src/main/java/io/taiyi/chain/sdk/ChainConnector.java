@@ -105,13 +105,6 @@ public class ChainConnector {
             return data;
         }
     }
-
-    private static class schemaLogResponse extends responseBase{
-        private LogRecords data;
-        LogRecords getData(){
-            return data;
-        }
-    }
     private static class documentResponse extends responseBase {
         private String data;
 
@@ -150,10 +143,73 @@ public class ChainConnector {
     }
 
     private static class actorsResponse extends responseBase {
-        private ActorPrivileges[] data;
+        private List<ActorPrivileges> data;
 
-        public ActorPrivileges[] getData() {
+        public List<ActorPrivileges> getData() {
             return data;
+        }
+    }
+    private static class blockRecordsResponse extends  responseBase{
+        private BlockRecords data;
+        public BlockRecords getData(){
+            return data;
+        }
+    }
+    private static class transactionRecordsResponse extends responseBase {
+        private TransactionRecords data;
+
+        public TransactionRecords getData() {
+            return data;
+        }
+    }
+    private static class schemaRecordsResponse extends responseBase {
+        private SchemaRecords data;
+
+        public SchemaRecords getData() {
+            return data;
+        }
+    }
+    private static class documentRecordsResponse extends responseBase {
+        private DocumentRecords data;
+
+        public DocumentRecords getData() {
+            return data;
+        }
+    }
+    private static class contractRecordsResponse extends responseBase {
+        private ContractRecords data;
+
+        public ContractRecords getData() {
+            return data;
+        }
+    }
+    //request defines
+    private static class actorsRequest {
+        private List<ActorPrivileges> actors;
+        actorsRequest(List<ActorPrivileges> actors){
+            this.actors = actors;
+        }
+    }
+    private static class paginationRequest {
+        private int offset;
+        private int limit;
+
+        public paginationRequest(int offset, int limit) {
+            this.offset = offset;
+            this.limit = limit;
+        }
+    }
+
+    private static class contentRequest{
+        private String content;
+        public contentRequest(String input){
+            content = input;
+        }
+    }
+    private static class flagRequest{
+        private boolean enable;
+        public flagRequest(boolean input){
+            enable = input;
         }
     }
 
@@ -318,6 +374,33 @@ public class ChainConnector {
         return resp.getData();
     }
 
+    /**
+     * Query blocks with pagination
+     * @param beginHeight begin block height, start from 1
+     * @param endHeight end block height, start from 1
+     * @return list of block records
+     */
+    public BlockRecords queryBlocks(int beginHeight, int endHeight) throws Exception {
+        if (endHeight < beginHeight) {
+            throw new Exception("end height " + endHeight + " must greater than begin height " + beginHeight);
+        }
+
+        String url = this.mapToDomain("/blocks/");
+
+        class Condition {
+            int from;
+            int to;
+            public Condition(int from, int to) {
+                this.from = from;
+                this.to = to;
+            }
+        }
+        Condition condition = new Condition(beginHeight, endHeight);
+
+        blockRecordsResponse resp = fetchResponseWithPayload(RequestMethod.POST, url, condition, blockRecordsResponse.class);
+        return resp.getData();
+    }
+
     public blockDataResponse getBlock(String blockID) throws Exception {
         if (blockID == null || blockID.isEmpty()) {
             throw new Exception("block ID required");
@@ -328,6 +411,23 @@ public class ChainConnector {
         return resp;
     }
 
+    /**
+     * Query transactions using pagination
+     * @param blockID block ID
+     * @param start start offset for querying, start from 0
+     * @param maxRecord max records returned
+     * @return transaction records
+     * @throws Exception on error
+     */
+    public TransactionRecords queryTransactions(String blockID, int start, int maxRecord) throws Exception {
+        if (blockID == null || blockID.isEmpty()) {
+            throw new IllegalArgumentException("Block ID is required");
+        }
+        String url = mapToDomain("/blocks/" + blockID + "/transactions/");
+        paginationRequest condition = new paginationRequest(start, maxRecord);
+        transactionRecordsResponse resp = fetchResponseWithPayload(RequestMethod.POST, url, condition, transactionRecordsResponse.class);
+        return resp.getData();
+    }
     public TransactionData getTransaction(String blockID, String transID) throws Exception {
         if (blockID == null || blockID.isEmpty()) {
             throw new Exception("block ID required");
@@ -338,6 +438,24 @@ public class ChainConnector {
         String url = mapToDomain("/blocks/" + blockID + "/transactions/" + transID);
         transactionDataResponse resp = fetchResponse(RequestMethod.GET, url, transactionDataResponse.class);
         return resp.getData();
+    }
+    public SchemaRecords querySchemas(int queryStart, int maxRecord) throws Exception {
+        final String url = mapToDomain("/schemas/");
+        final paginationRequest condition = new paginationRequest(queryStart, maxRecord);
+        final schemaRecordsResponse response = fetchResponseWithPayload(RequestMethod.POST, url, condition, schemaRecordsResponse.class);
+        return response.getData();
+    }
+    /**
+     * Rebuild index of a schema
+     * @param schemaName schema for rebuilding
+     * @throws Exception if schemaName is null or empty
+     */
+    public void rebuildIndex(String schemaName) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName + "/index/");
+        doRequest(RequestMethod.POST, url);
     }
 
     public boolean hasSchema(String schemaName) throws Exception {
@@ -357,6 +475,48 @@ public class ChainConnector {
         return resp.getData();
     }
     /**
+     * Create a new schema
+     * @param schemaName Name of new schema
+     * @param properties Properties of new schema
+     * @throws Exception if schemaName is null or empty
+     */
+    public void createSchema(String schemaName, List<DocumentProperty> properties) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName);
+        doRequestWithPayload(RequestMethod.POST, url, properties);
+    }
+
+    /**
+     * Update an existing schema
+     * @param schemaName Name of schema to update
+     * @param properties Properties of schema to update
+     */
+    public void updateSchema(String schemaName, List<DocumentProperty> properties) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Error("schema name required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName);
+        doRequestWithPayload(RequestMethod.PUT, url, properties);
+    }
+
+
+    /**
+     * Delete a schema
+     * @param schemaName name of target schema
+     * @throws Exception if schemaName is null or empty
+     */
+    public void deleteSchema(String schemaName) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName);
+        doRequest(RequestMethod.DELETE, url);
+    }
+
+
+    /**
      * Get trace log of a schema
      * @param {string} schemaName schema name
      * @returns {LogRecords} list of log records
@@ -366,7 +526,7 @@ public class ChainConnector {
             throw new Exception("schema name required");
         }
         final String url = mapToDomain("/schemas/" + schemaName + "/logs/");
-        schemaLogResponse resp = fetchResponse(RequestMethod.GET, url, schemaLogResponse.class);
+        logRecordsResponse resp = fetchResponse(RequestMethod.GET, url, logRecordsResponse.class);
         return resp.getData();
     }
     /**
@@ -374,7 +534,7 @@ public class ChainConnector {
      * @param {string} schemaName schema name
      * @returns {ActorPrivileges[]} list of actor privileges
      */
-    public ActorPrivileges[] getSchemaActors(String schemaName) throws Exception {
+    public List<ActorPrivileges> getSchemaActors(String schemaName) throws Exception {
         if (schemaName == null || schemaName.isEmpty()) {
             throw new Exception("schema name required");
         }
@@ -382,7 +542,49 @@ public class ChainConnector {
         actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
         return resp.getData();
     }
+    /**
+     * Update meta actors of a schema
+     * @param schemaName schema name
+     * @param actors list of actor privileges
+     * @throws IllegalArgumentException if schemaName or actors is null or empty
+     * @throws Exception if request fails
+     */
+    public void updateSchemaActors(String schemaName, List<ActorPrivileges> actors) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new IllegalArgumentException("Schema name is required");
+        }
+        if (actors == null || actors.isEmpty()) {
+            throw new IllegalArgumentException("Actor privileges list is required");
+        }
+        final String url = mapToDomain("/schemas/" + schemaName + "/actors/");
+        final actorsRequest payload = new actorsRequest(actors);
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
 
+    /**
+     * Query documents using the query condition
+     * @param schemaName schema name
+     * @param condition query condition
+     * @return document records
+     */
+    public DocumentRecords queryDocuments(String schemaName, QueryCondition condition) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new IllegalArgumentException("schema name required");
+        }
+        String url = mapToDomain("/queries/schemas/" + schemaName + "/docs/");
+        final documentRecordsResponse resp = fetchResponseWithPayload(RequestMethod.POST, url, condition, documentRecordsResponse.class);
+        return resp.getData();
+    }
+    public boolean hasDocument(String schemaName, String docID) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new Exception("document ID required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID);
+        return peekRequest(RequestMethod.HEAD, url);
+    }
     public String getDocument(String schemaName, String docID) throws Exception {
         if (schemaName == null || schemaName.isEmpty()) {
             throw new Exception("schema name required");
@@ -393,6 +595,41 @@ public class ChainConnector {
         final String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID);
         documentResponse resp = fetchResponse(RequestMethod.GET, url, documentResponse.class);
         return resp.getData();
+    }
+
+    /**
+     * Update content of a document
+     * @param schemaName schema name
+     * @param docID document ID
+     * @param docContent document content in JSON format
+     * @throws IllegalArgumentException if schemaName or docID is null or empty
+     */
+    public void updateDocument(String schemaName, String docID, String docContent) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new IllegalArgumentException("schema name required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new IllegalArgumentException("document ID required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID);
+        contentRequest payload = new contentRequest(docContent);
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
+    /**
+     * Remove a document
+     * @param schemaName schema name
+     * @param docID document ID
+     * @throws Exception if any error occurs
+     */
+    public void removeDocument(String schemaName, String docID) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new Exception("document ID required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID);
+        doRequest(RequestMethod.DELETE, url);
     }
 
     public LogRecords getDocumentLogs(String schemaName, String docID) throws Exception {
@@ -408,7 +645,7 @@ public class ChainConnector {
         return resp.getData();
     }
 
-    public ActorPrivileges[] getDocumentActors(String schemaName, String docID) throws Exception {
+    public List<ActorPrivileges> getDocumentActors(String schemaName, String docID) throws Exception {
         if (schemaName == null || schemaName.isEmpty()) {
             throw new Exception("schema name required");
         }
@@ -420,6 +657,47 @@ public class ChainConnector {
         actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
         return resp.getData();
     }
+    /**
+     * Update meta actors of a document
+     * @param schemaName name of target schema
+     * @param docID ID of target document
+     * @param actors list of actor privileges
+     */
+    public void updateDocumentActors(String schemaName, String docID, List<ActorPrivileges> actors) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new IllegalArgumentException("Schema name is required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new IllegalArgumentException("Document ID is required");
+        }
+        if (actors == null || actors.isEmpty()) {
+            throw new IllegalArgumentException("Actor privileges list is required");
+        }
+        final String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID + "/actors/");
+        final actorsRequest payload = new actorsRequest(actors);
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
+
+    public ContractRecords queryContracts(int queryStart, int maxRecord) throws Exception {
+        final String url = mapToDomain("/contracts/");
+
+        final paginationRequest condition = new paginationRequest(queryStart, maxRecord);
+        final contractRecordsResponse response = fetchResponseWithPayload(RequestMethod.POST, url, condition, contractRecordsResponse.class);
+        return response.getData();
+    }
+    /**
+     * Check if a contract exists
+     * @param {String} contractName target contract name
+     * @return {boolean} true: exists/false: not exists
+     * @throws Exception if contract name is not provided
+     */
+    public boolean hasContract(String contractName) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new Exception("contract name required");
+        }
+        String url = mapToDomain("/contracts/" + contractName);
+        return peekRequest(RequestMethod.HEAD, url);
+    }
 
     public ContractDefine getContract(String contractName) throws Exception {
         if (contractName == null || contractName.isEmpty()) {
@@ -430,6 +708,53 @@ public class ChainConnector {
         ContractDefine define = compactJSONMarshaller.fromJson(resp.getData().getContent(), ContractDefine.class);
         return define;
     }
+    /**
+     * Deploy a contract define
+     * @param {String} contractName contract name
+     * @param {ContractDefine} define contract define
+     */
+    public void deployContract(String contractName, ContractDefine define) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new IllegalArgumentException("contract name required");
+        }
+        String url = mapToDomain("/contracts/" + contractName);
+        contentRequest payload = new contentRequest(compactJSONMarshaller.toJson(define));
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
+
+    public void withdrawContract(String contractName) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new Exception("contract name required");
+        }
+        String url = mapToDomain("/contracts/" + contractName);
+        doRequest(RequestMethod.DELETE, url);
+    }
+
+    /**
+     * Enable contract tracing
+     * @param contractName contract name
+     */
+    public void enableContractTrace(String contractName) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new IllegalArgumentException("contract name required");
+        }
+        String url = mapToDomain("/contracts/" + contractName + "/trace/");
+        flagRequest payload = new flagRequest(true);
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
+    /**
+     * Disable contract tracing
+     * @param contractName contract name
+     */
+    public void disableContractTrace(String contractName) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new IllegalArgumentException("contract name required");
+        }
+        String url = mapToDomain("/contracts/" + contractName + "/trace/");
+        flagRequest payload = new flagRequest(false);
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
+
     /**
      * Get detail info of a contract
      * @param contractName target contract name
@@ -445,7 +770,7 @@ public class ChainConnector {
         return resp.getData();
     }
 
-    public ActorPrivileges[] getContractActors(String contractName) throws Exception {
+    public List<ActorPrivileges> getContractActors(String contractName) throws Exception {
         if (contractName == null || contractName.isEmpty()) {
             throw new Exception("contract name required");
         }
@@ -454,6 +779,20 @@ public class ChainConnector {
         actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
         return resp.getData();
     }
+
+    public void updateContractActors(String contractName, List<ActorPrivileges> actors) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new IllegalArgumentException("Contract name is required");
+        }
+        if (actors == null || actors.isEmpty()) {
+            throw new IllegalArgumentException("Actor privileges list is required");
+        }
+        final String url = mapToDomain("/contracts/" + contractName + "/actors/");
+        final actorsRequest payload = new actorsRequest(actors);
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
+
+
 
     //private methods below
     private PrivateKey generatePrivateKey(byte[] privateKeyBytes) {
