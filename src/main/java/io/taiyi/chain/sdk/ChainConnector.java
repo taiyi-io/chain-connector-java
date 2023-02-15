@@ -2,6 +2,7 @@ package io.taiyi.chain.sdk;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.jayway.jsonpath.JsonPath;
 import net.i2p.crypto.eddsa.EdDSAEngine;
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
 import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
@@ -78,12 +79,15 @@ public class ChainConnector {
             return data;
         }
     }
-    private static class statusResponse extends responseBase{
+
+    private static class statusResponse extends responseBase {
         private ChainStatus data;
-        ChainStatus getData(){
+
+        ChainStatus getData() {
             return data;
         }
     }
+
     private static class transactionDataResponse extends responseBase {
         private TransactionData data;
 
@@ -91,6 +95,7 @@ public class ChainConnector {
             return data;
         }
     }
+
     private static class blockDataResponse extends responseBase {
         private BlockData data;
 
@@ -98,6 +103,7 @@ public class ChainConnector {
             return data;
         }
     }
+
     private static class SchemaDataResponse extends responseBase {
         private DocumentSchema data;
 
@@ -105,6 +111,7 @@ public class ChainConnector {
             return data;
         }
     }
+
     private static class documentResponse extends responseBase {
         private String data;
 
@@ -112,6 +119,7 @@ public class ChainConnector {
             return data;
         }
     }
+
     private static class logRecordsResponse extends responseBase {
         private LogRecords data;
 
@@ -119,24 +127,31 @@ public class ChainConnector {
             return data;
         }
     }
-    private static class contractInfoResponse extends responseBase{
+
+    private static class contractInfoResponse extends responseBase {
         private ContractInfo data;
-        public ContractInfo getData(){
+
+        public ContractInfo getData() {
             return data;
         }
     }
-    private static class contractData{
+
+    private static class contractData {
         private String name;
         private String content;
-        public String getName(){
+
+        public String getName() {
             return name;
         }
-        public String getContent(){
+
+        public String getContent() {
             return content;
         }
     }
+
     private static class contractResponse extends responseBase {
         private contractData data;
+
         public contractData getData() {
             return data;
         }
@@ -149,12 +164,15 @@ public class ChainConnector {
             return data;
         }
     }
-    private static class blockRecordsResponse extends  responseBase{
+
+    private static class blockRecordsResponse extends responseBase {
         private BlockRecords data;
-        public BlockRecords getData(){
+
+        public BlockRecords getData() {
             return data;
         }
     }
+
     private static class transactionRecordsResponse extends responseBase {
         private TransactionRecords data;
 
@@ -162,6 +180,7 @@ public class ChainConnector {
             return data;
         }
     }
+
     private static class schemaRecordsResponse extends responseBase {
         private SchemaRecords data;
 
@@ -169,6 +188,7 @@ public class ChainConnector {
             return data;
         }
     }
+
     private static class documentRecordsResponse extends responseBase {
         private DocumentRecords data;
 
@@ -176,6 +196,7 @@ public class ChainConnector {
             return data;
         }
     }
+
     private static class contractRecordsResponse extends responseBase {
         private ContractRecords data;
 
@@ -183,13 +204,24 @@ public class ChainConnector {
             return data;
         }
     }
+
+    private static class stringResponse extends responseBase {
+        private String data;
+
+        public String getData() {
+            return data;
+        }
+    }
+
     //request defines
     private static class actorsRequest {
         private List<ActorPrivileges> actors;
-        actorsRequest(List<ActorPrivileges> actors){
+
+        actorsRequest(List<ActorPrivileges> actors) {
             this.actors = actors;
         }
     }
+
     private static class paginationRequest {
         private int offset;
         private int limit;
@@ -200,16 +232,48 @@ public class ChainConnector {
         }
     }
 
-    private static class contentRequest{
+    private static class contentRequest {
         private String content;
-        public contentRequest(String input){
+
+        public contentRequest(String input) {
             content = input;
         }
     }
-    private static class flagRequest{
+
+    private static class documentRequest {
+        private String id;
+        private String content;
+
+        public documentRequest(String docID, String docContent) {
+            id = docID;
+            content = docContent;
+        }
+
+    }
+
+    private static class flagRequest {
         private boolean enable;
-        public flagRequest(boolean input){
+
+        public flagRequest(boolean input) {
             enable = input;
+        }
+    }
+
+    private static class parametersRequest {
+        private List<String> parameters;
+
+        public parametersRequest(List<String> values) {
+            parameters = values;
+        }
+    }
+
+    private static class propertyRequest {
+        private PropertyType type;
+        private Object value;
+
+        public propertyRequest(PropertyType valueType, Object propertyValue) {
+            type = valueType;
+            value = propertyValue;
         }
     }
 
@@ -245,7 +309,7 @@ public class ChainConnector {
 
     private final HttpClient _client;
 
-    private final Gson compactJSONMarshaller = new GsonBuilder().disableHtmlEscaping().create();
+    private final Gson compactJSONMarshaller = new GsonBuilder().disableHtmlEscaping().setLenient().create();
 
     public static ChainConnector NewConnectorFromAccess(AccessKey key) throws Exception {
         String id = key.getPrivateData().getId();
@@ -368,7 +432,7 @@ public class ChainConnector {
         }
     }
 
-    public ChainStatus getStatus() throws Exception{
+    public ChainStatus getStatus() throws Exception {
         final String url = mapToDomain("/status");
         statusResponse resp = fetchResponse(RequestMethod.GET, url, statusResponse.class);
         return resp.getData();
@@ -376,8 +440,9 @@ public class ChainConnector {
 
     /**
      * Query blocks with pagination
+     *
      * @param beginHeight begin block height, start from 1
-     * @param endHeight end block height, start from 1
+     * @param endHeight   end block height, start from 1
      * @return list of block records
      */
     public BlockRecords queryBlocks(int beginHeight, int endHeight) throws Exception {
@@ -390,6 +455,7 @@ public class ChainConnector {
         class Condition {
             int from;
             int to;
+
             public Condition(int from, int to) {
                 this.from = from;
                 this.to = to;
@@ -413,8 +479,9 @@ public class ChainConnector {
 
     /**
      * Query transactions using pagination
-     * @param blockID block ID
-     * @param start start offset for querying, start from 0
+     *
+     * @param blockID   block ID
+     * @param start     start offset for querying, start from 0
      * @param maxRecord max records returned
      * @return transaction records
      * @throws Exception on error
@@ -428,6 +495,7 @@ public class ChainConnector {
         transactionRecordsResponse resp = fetchResponseWithPayload(RequestMethod.POST, url, condition, transactionRecordsResponse.class);
         return resp.getData();
     }
+
     public TransactionData getTransaction(String blockID, String transID) throws Exception {
         if (blockID == null || blockID.isEmpty()) {
             throw new Exception("block ID required");
@@ -439,14 +507,17 @@ public class ChainConnector {
         transactionDataResponse resp = fetchResponse(RequestMethod.GET, url, transactionDataResponse.class);
         return resp.getData();
     }
+
     public SchemaRecords querySchemas(int queryStart, int maxRecord) throws Exception {
         final String url = mapToDomain("/schemas/");
         final paginationRequest condition = new paginationRequest(queryStart, maxRecord);
         final schemaRecordsResponse response = fetchResponseWithPayload(RequestMethod.POST, url, condition, schemaRecordsResponse.class);
         return response.getData();
     }
+
     /**
      * Rebuild index of a schema
+     *
      * @param schemaName schema for rebuilding
      * @throws Exception if schemaName is null or empty
      */
@@ -474,8 +545,10 @@ public class ChainConnector {
         SchemaDataResponse resp = fetchResponse(RequestMethod.GET, url, SchemaDataResponse.class);
         return resp.getData();
     }
+
     /**
      * Create a new schema
+     *
      * @param schemaName Name of new schema
      * @param properties Properties of new schema
      * @throws Exception if schemaName is null or empty
@@ -490,6 +563,7 @@ public class ChainConnector {
 
     /**
      * Update an existing schema
+     *
      * @param schemaName Name of schema to update
      * @param properties Properties of schema to update
      */
@@ -504,6 +578,7 @@ public class ChainConnector {
 
     /**
      * Delete a schema
+     *
      * @param schemaName name of target schema
      * @throws Exception if schemaName is null or empty
      */
@@ -518,6 +593,7 @@ public class ChainConnector {
 
     /**
      * Get trace log of a schema
+     *
      * @param {string} schemaName schema name
      * @returns {LogRecords} list of log records
      */
@@ -529,8 +605,10 @@ public class ChainConnector {
         logRecordsResponse resp = fetchResponse(RequestMethod.GET, url, logRecordsResponse.class);
         return resp.getData();
     }
+
     /**
      * Get meta actors of a schema
+     *
      * @param {string} schemaName schema name
      * @returns {ActorPrivileges[]} list of actor privileges
      */
@@ -542,12 +620,14 @@ public class ChainConnector {
         actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
         return resp.getData();
     }
+
     /**
      * Update meta actors of a schema
+     *
      * @param schemaName schema name
-     * @param actors list of actor privileges
+     * @param actors     list of actor privileges
      * @throws IllegalArgumentException if schemaName or actors is null or empty
-     * @throws Exception if request fails
+     * @throws Exception                if request fails
      */
     public void updateSchemaActors(String schemaName, List<ActorPrivileges> actors) throws Exception {
         if (schemaName == null || schemaName.isEmpty()) {
@@ -563,8 +643,9 @@ public class ChainConnector {
 
     /**
      * Query documents using the query condition
+     *
      * @param schemaName schema name
-     * @param condition query condition
+     * @param condition  query condition
      * @return document records
      */
     public DocumentRecords queryDocuments(String schemaName, QueryCondition condition) throws Exception {
@@ -575,6 +656,7 @@ public class ChainConnector {
         final documentRecordsResponse resp = fetchResponseWithPayload(RequestMethod.POST, url, condition, documentRecordsResponse.class);
         return resp.getData();
     }
+
     public boolean hasDocument(String schemaName, String docID) throws Exception {
         if (schemaName == null || schemaName.isEmpty()) {
             throw new Exception("schema name required");
@@ -585,6 +667,7 @@ public class ChainConnector {
         String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID);
         return peekRequest(RequestMethod.HEAD, url);
     }
+
     public String getDocument(String schemaName, String docID) throws Exception {
         if (schemaName == null || schemaName.isEmpty()) {
             throw new Exception("schema name required");
@@ -598,9 +681,28 @@ public class ChainConnector {
     }
 
     /**
-     * Update content of a document
+     * Add a new document to schema
+     *
      * @param schemaName schema name
-     * @param docID document ID
+     * @param docID      optional document ID, generate when omit
+     * @param docContent document content in JSON format
+     * @return document ID
+     */
+    public String addDocument(String schemaName, String docID, String docContent) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        String url = this.mapToDomain("/schemas/" + schemaName + "/docs/");
+        documentRequest payload = new documentRequest(docID, docContent);
+        stringResponse resp = this.fetchResponseWithPayload(RequestMethod.POST, url, payload, stringResponse.class);
+        return resp.getData();
+    }
+
+    /**
+     * Update content of a document
+     *
+     * @param schemaName schema name
+     * @param docID      document ID
      * @param docContent document content in JSON format
      * @throws IllegalArgumentException if schemaName or docID is null or empty
      */
@@ -615,10 +717,37 @@ public class ChainConnector {
         contentRequest payload = new contentRequest(docContent);
         doRequestWithPayload(RequestMethod.PUT, url, payload);
     }
+
     /**
-     * Remove a document
+     * Update property value of a document
      * @param schemaName schema name
      * @param docID document ID
+     * @param propertyName property for updating
+     * @param valueType value type of property
+     * @param value value for property
+     */
+    public void updateDocumentProperty(String schemaName, String docID, String propertyName, PropertyType valueType,
+                                       Object value) throws Exception {
+        if (schemaName == null || schemaName.isEmpty()) {
+            throw new Exception("schema name required");
+        }
+        if (docID == null || docID.isEmpty()) {
+            throw new Exception("document ID required");
+        }
+        if (propertyName == null || propertyName.isEmpty()) {
+            throw new Exception("property name required");
+        }
+        String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID + "/properties/" + propertyName);
+        propertyRequest payload = new propertyRequest(valueType, value);
+        doRequestWithPayload(RequestMethod.PUT, url, payload);
+    }
+
+
+    /**
+     * Remove a document
+     *
+     * @param schemaName schema name
+     * @param docID      document ID
      * @throws Exception if any error occurs
      */
     public void removeDocument(String schemaName, String docID) throws Exception {
@@ -657,11 +786,13 @@ public class ChainConnector {
         actorsResponse resp = fetchResponse(RequestMethod.GET, url, actorsResponse.class);
         return resp.getData();
     }
+
     /**
      * Update meta actors of a document
+     *
      * @param schemaName name of target schema
-     * @param docID ID of target document
-     * @param actors list of actor privileges
+     * @param docID      ID of target document
+     * @param actors     list of actor privileges
      */
     public void updateDocumentActors(String schemaName, String docID, List<ActorPrivileges> actors) throws Exception {
         if (schemaName == null || schemaName.isEmpty()) {
@@ -685,8 +816,10 @@ public class ChainConnector {
         final contractRecordsResponse response = fetchResponseWithPayload(RequestMethod.POST, url, condition, contractRecordsResponse.class);
         return response.getData();
     }
+
     /**
      * Check if a contract exists
+     *
      * @param {String} contractName target contract name
      * @return {boolean} true: exists/false: not exists
      * @throws Exception if contract name is not provided
@@ -708,9 +841,11 @@ public class ChainConnector {
         ContractDefine define = compactJSONMarshaller.fromJson(resp.getData().getContent(), ContractDefine.class);
         return define;
     }
+
     /**
      * Deploy a contract define
-     * @param {String} contractName contract name
+     *
+     * @param {String}         contractName contract name
      * @param {ContractDefine} define contract define
      */
     public void deployContract(String contractName, ContractDefine define) throws Exception {
@@ -731,7 +866,23 @@ public class ChainConnector {
     }
 
     /**
+     * Invoke a contract with parameters
+     *
+     * @param {string}       contractName contract name
+     * @param {List<String>} parameters parameters for invoking contract
+     */
+    public void callContract(String contractName, List<String> parameters) throws Exception {
+        if (contractName == null || contractName.isEmpty()) {
+            throw new Exception("contract name required");
+        }
+        String url = this.mapToDomain("/contracts/" + contractName + "/sessions/");
+        parametersRequest payload = new parametersRequest(parameters);
+        doRequestWithPayload(RequestMethod.POST, url, payload);
+    }
+
+    /**
      * Enable contract tracing
+     *
      * @param contractName contract name
      */
     public void enableContractTrace(String contractName) throws Exception {
@@ -742,8 +893,10 @@ public class ChainConnector {
         flagRequest payload = new flagRequest(true);
         doRequestWithPayload(RequestMethod.PUT, url, payload);
     }
+
     /**
      * Disable contract tracing
+     *
      * @param contractName contract name
      */
     public void disableContractTrace(String contractName) throws Exception {
@@ -757,6 +910,7 @@ public class ChainConnector {
 
     /**
      * Get detail info of a contract
+     *
      * @param contractName target contract name
      * @return ContractInfo contract info
      * @throws Exception if contract name is not provided or API call fails
@@ -791,7 +945,6 @@ public class ChainConnector {
         final actorsRequest payload = new actorsRequest(actors);
         doRequestWithPayload(RequestMethod.PUT, url, payload);
     }
-
 
 
     //private methods below
@@ -884,11 +1037,14 @@ public class ChainConnector {
         if (200 != resp.statusCode()) {
             throw new Exception(String.format("fetch result failed with status %d", resp.statusCode()));
         }
-        T respPayload = compactJSONMarshaller.fromJson(resp.body(), classofT);
-        if (0 != respPayload.getErrorCode()) {
-            throw new Exception(String.format("fetch failed: %s", respPayload.getErrorMessage()));
+        var responseContent = resp.body();
+        //check
+        int errorCode = JsonPath.read(responseContent, "$.error_code");
+        if (0 != errorCode){
+            String errorMessage = JsonPath.read(responseContent, "$.message");
+            throw new Exception(String.format("fetch failed: %s", errorMessage));
         }
-        return respPayload;
+        return compactJSONMarshaller.fromJson(resp.body(), classofT);
     }
 
     private Boolean peekRequest(RequestMethod method, String url) throws IOException,
