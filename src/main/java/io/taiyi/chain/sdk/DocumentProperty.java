@@ -2,13 +2,17 @@ package io.taiyi.chain.sdk;
 
 public class DocumentProperty {
     private String name;
-    private PropertyType type;
+    private String type;
     private boolean indexed;
     private boolean omissible;
 
-    public DocumentProperty(String name, PropertyType type) {
+    public DocumentProperty(String name, String type) {
         this.name = name;
         this.type = type;
+    }
+    public DocumentProperty(String name, PropertyType type) {
+        this.name = name;
+        this.type = type.toString();
     }
 
     public String getName() {
@@ -19,11 +23,11 @@ public class DocumentProperty {
         this.name = name;
     }
 
-    public PropertyType getType() {
+    public String getType() {
         return type;
     }
 
-    public void setType(PropertyType type) {
+    public void setType(String type) {
         this.type = type;
     }
 

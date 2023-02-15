@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -15,6 +17,7 @@ class ChainConnectorTest {
 //    final static String host = "192.168.25.223";
     final static int port = 9100;
     final static String AccessFilename = "access_key.json";
+    final static Gson objectMarshaller = new GsonBuilder().setPrettyPrinting().create();
 
     private ChainConnector getConnector() throws Exception {
         String currentDirectory = System.getProperty("user.dir");
@@ -57,5 +60,42 @@ class ChainConnectorTest {
             System.out.println(e);
             fail(e.getCause());
         }
+    }
+
+    @Test
+    void testSchemas() throws Exception {
+        ChainConnector conn = getConnector();
+        final String schemaName = "js-test-case1-schema";
+        if (conn.hasSchema(schemaName)){
+            conn.deleteSchema(schemaName);
+            System.out.printf("previous schema %s deleted\n", schemaName);
+        }else{
+            System.out.printf("previous schema %s not exists\n", schemaName);
+        }
+        {
+            List<DocumentProperty> properties = new ArrayList<>();
+            properties.add(new DocumentProperty("name", PropertyType.String));
+            properties.add(new DocumentProperty("age", PropertyType.Integer));
+            properties.add(new DocumentProperty("available", PropertyType.Boolean));
+            conn.createSchema(schemaName, properties);
+            DocumentSchema schema = conn.getSchema(schemaName);
+            System.out.printf("schema created: %s\n", objectMarshaller.toJson(schema));
+        }
+        {
+            List<DocumentProperty> properties = new ArrayList<>();
+            properties.add(new DocumentProperty("name", PropertyType.String));
+            properties.add(new DocumentProperty("age", PropertyType.Integer));
+            properties.add(new DocumentProperty("amount", PropertyType.Currency));
+            properties.add(new DocumentProperty("country", PropertyType.String));
+
+            conn.updateSchema(schemaName, properties);
+            DocumentSchema schema = conn.getSchema(schemaName);
+            System.out.printf("schema updated: %s\n", objectMarshaller.toJson(schema));
+        }
+        {
+            conn.deleteSchema(schemaName);
+            System.out.printf("schema %s deleted\n", schemaName);
+        }
+        System.out.println("test schemas pass");
     }
 }

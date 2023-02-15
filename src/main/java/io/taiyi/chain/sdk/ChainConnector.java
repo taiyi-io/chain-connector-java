@@ -991,9 +991,6 @@ public class ChainConnector {
         } else {
             body = "";
         }
-        if (_trace) {
-            System.out.printf("body:\n%s\n", body);
-        }
         builder.method(method.toString(), HttpRequest.BodyPublishers.ofString(body));
         for (Pair<String, String> header : headers) {
             builder.header(header.getKey(), header.getValue());
@@ -1083,6 +1080,9 @@ public class ChainConnector {
             //has payload
             builder.setHeader(Constants.HEADER_CONTENT_TYPE, Constants.CONTENT_TYPE_JSON);
             bodyPayload = compactJSONMarshaller.toJson(payload);
+            if (_trace){
+                System.out.printf("<Chain-DEBUG> [%s]: request payload: \n%s\n", _sessionID, bodyPayload);
+            }
             builder.method(signaturePayload.method, HttpRequest.BodyPublishers.ofString(bodyPayload));
         } else {
             bodyPayload = "";

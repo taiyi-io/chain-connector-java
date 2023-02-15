@@ -24,27 +24,21 @@ public class Constants {
 }
 
 enum PropertyType {
-    String, Boolean, Integer, Float, Currency, Collection, Document;
+    String("string"),
+    Boolean("bool"),
+    Integer("int"),
+    Float("float"),
+    Currency("currency"),
+    Collection("collection"),
+    Document("document");
+    private final String value;
+
+    PropertyType(String value) {
+        this.value = value;
+    }
 
     public String toString() {
-        switch (this) {
-            case String:
-                return "string";
-            case Boolean:
-                return "bool";
-            case Integer:
-                return "int";
-            case Float:
-                return "float";
-            case Currency:
-                return "currency";
-            case Collection:
-                return "collection";
-            case Document:
-                return "document";
-            default:
-                return "";
-        }
+        return value;
     }
 }
 
