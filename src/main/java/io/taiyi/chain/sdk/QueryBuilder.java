@@ -13,39 +13,39 @@ public class QueryBuilder {
 
     public QueryBuilder() {
         this.filters = new ArrayList<>();
-        this.since = "";
+        this.since = null;
         this.offset = 0;
         this.limit = 0;
         this.order = "";
         this.descend = false;
     }
 
-    public QueryBuilder PropertyEqual(String propertyName, String value) {
+    public QueryBuilder PropertyEqual(String propertyName, Object value) {
         this.filters.add(new ConditionFilter(propertyName, FilterOperator.EQUAL, value));
         return this;
     }
 
-    public QueryBuilder PropertyNotEqual(String propertyName, String value) {
+    public QueryBuilder PropertyNotEqual(String propertyName, Object value) {
         this.filters.add(new ConditionFilter(propertyName, FilterOperator.NOT_EQUAL, value));
         return this;
     }
 
-    public QueryBuilder PropertyGreaterThan(String propertyName, String value) {
+    public QueryBuilder PropertyGreaterThan(String propertyName, Object value) {
         this.filters.add(new ConditionFilter(propertyName, FilterOperator.GREATER_THAN, value));
         return this;
     }
 
-    public QueryBuilder PropertyLessThan(String propertyName, String value) {
+    public QueryBuilder PropertyLessThan(String propertyName, Object value) {
         this.filters.add(new ConditionFilter(propertyName, FilterOperator.LESS_THAN, value));
         return this;
     }
 
-    public QueryBuilder PropertyGreaterOrEqual(String propertyName, String value) {
+    public QueryBuilder PropertyGreaterOrEqual(String propertyName, Object value) {
         this.filters.add(new ConditionFilter(propertyName, FilterOperator.GREATER_OR_EQUAL, value));
         return this;
     }
 
-    public QueryBuilder PropertyLessOrEqual(String propertyName, String value) {
+    public QueryBuilder PropertyLessOrEqual(String propertyName, Object value) {
         this.filters.add(new ConditionFilter(propertyName, FilterOperator.LESS_OR_EQUAL, value));
         return this;
     }

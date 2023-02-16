@@ -204,11 +204,17 @@ public class ChainConnector {
             return data;
         }
     }
+    private static class newDocumentData {
+        private String id;
 
-    private static class stringResponse extends responseBase {
-        private String data;
+        public String getId() {
+            return id;
+        }
+    }
+    private static class documentCreatedResponse extends responseBase {
+        private newDocumentData data;
 
-        public String getData() {
+        public newDocumentData getData() {
             return data;
         }
     }
@@ -268,11 +274,11 @@ public class ChainConnector {
     }
 
     private static class propertyRequest {
-        private PropertyType type;
+        private String type;
         private Object value;
 
         public propertyRequest(PropertyType valueType, Object propertyValue) {
-            type = valueType;
+            type = valueType.toString();
             value = propertyValue;
         }
     }
@@ -694,8 +700,8 @@ public class ChainConnector {
         }
         String url = this.mapToDomain("/schemas/" + schemaName + "/docs/");
         documentRequest payload = new documentRequest(docID, docContent);
-        stringResponse resp = this.fetchResponseWithPayload(RequestMethod.POST, url, payload, stringResponse.class);
-        return resp.getData();
+        documentCreatedResponse resp = this.fetchResponseWithPayload(RequestMethod.POST, url, payload, documentCreatedResponse.class);
+        return resp.getData().getId();
     }
 
     /**
@@ -1017,7 +1023,6 @@ public class ChainConnector {
 
     private <T extends responseStatus> T fetchResponseWithPayload(RequestMethod method, String url, Object payload, Class<T> classofT) throws Exception {
         HttpRequest request = prepareRequest(method, url, payload);
-        validateResult(request);
         return getResult(request, classofT);
     }
 
