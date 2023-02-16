@@ -1,22 +1,25 @@
 package io.taiyi.chain.sdk;
 
-public class ContractDefine {
-    private ContractStep[] steps;
-    private ContractParameter[] parameters;
+import java.util.List;
 
-    public ContractStep[] getSteps() {
+public class ContractDefine {
+    private List<ContractStep> steps;
+    private List<ContractParameter> parameters = null;
+
+    public List<ContractStep> getSteps() {
         return steps;
     }
 
-    public void setSteps(ContractStep[] steps) {
+    public ContractDefine(List<ContractStep> steps){
         this.steps = steps;
     }
+    public ContractDefine(List<ContractStep> steps, List<ContractParameter> parameters){
+        this.steps = steps;
+        this.parameters = parameters;
+    }
 
-    public ContractParameter[] getParameters() {
+    public List<ContractParameter> getParameters() {
         return parameters;
     }
 
-    public void setParameters(ContractParameter[] parameters) {
-        this.parameters = parameters;
-    }
 }

@@ -1,50 +1,50 @@
 package io.taiyi.chain.sdk;
 
 public class ChainStatus {
-    private String worldVersion;
-    private int blockHeight;
-    private String previousBlock;
-    private String genesisBlock;
-    private String allocatedTransactionId;
+    private String world_version;
+    private int block_height;
+    private String previous_block;
+    private String genesis_block;
+    private String allocated_transaction_id;
 
     public String getWorldVersion() {
-        return worldVersion;
+        return world_version;
     }
 
     public void setWorldVersion(String worldVersion) {
-        this.worldVersion = worldVersion;
+        this.world_version = worldVersion;
     }
 
     public int getBlockHeight() {
-        return blockHeight;
+        return block_height;
     }
 
     public void setBlockHeight(int blockHeight) {
-        this.blockHeight = blockHeight;
+        this.block_height = blockHeight;
     }
 
     public String getPreviousBlock() {
-        return previousBlock;
+        return previous_block;
     }
 
     public void setPreviousBlock(String previousBlock) {
-        this.previousBlock = previousBlock;
+        this.previous_block = previousBlock;
     }
 
     public String getGenesisBlock() {
-        return genesisBlock;
+        return genesis_block;
     }
 
     public void setGenesisBlock(String genesisBlock) {
-        this.genesisBlock = genesisBlock;
+        this.genesis_block = genesisBlock;
     }
 
     public String getAllocatedTransactionId() {
-        return allocatedTransactionId;
+        return allocated_transaction_id;
     }
 
     public void setAllocatedTransactionId(String allocatedTransactionId) {
-        this.allocatedTransactionId = allocatedTransactionId;
+        this.allocated_transaction_id = allocatedTransactionId;
     }
 }
 

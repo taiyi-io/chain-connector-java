@@ -15,6 +15,19 @@ public class DocumentProperty {
         this.type = type.toString();
     }
 
+    public DocumentProperty(String name, PropertyType type, boolean enableIndex) {
+        this.name = name;
+        this.type = type.toString();
+        this.indexed = enableIndex;
+    }
+
+    public DocumentProperty(String name, PropertyType type, boolean enableIndex, boolean propertyOmissible) {
+        this.name = name;
+        this.type = type.toString();
+        this.indexed = enableIndex;
+        this.omissible = propertyOmissible;
+    }
+
     public String getName() {
         return name;
     }

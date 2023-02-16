@@ -1,15 +1,15 @@
 package io.taiyi.chain.sdk;
 
 public class LogRecords {
-    private int latestVersion;
+    private int latest_version;
     private TraceLog[] logs;
 
     public int getLatestVersion() {
-        return latestVersion;
+        return latest_version;
     }
 
     public void setLatestVersion(int latestVersion) {
-        this.latestVersion = latestVersion;
+        this.latest_version = latestVersion;
     }
 
     public TraceLog[] getLogs() {

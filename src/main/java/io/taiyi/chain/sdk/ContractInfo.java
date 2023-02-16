@@ -5,7 +5,7 @@ public class ContractInfo {
     private Integer parameters;
     private Integer steps;
     private Integer version;
-    private String modifiedTime;
+    private String modified_time;
     private Boolean enabled;
     private Boolean trace;
 
@@ -42,26 +42,19 @@ public class ContractInfo {
     }
 
     public String getModifiedTime() {
-        return modifiedTime;
+        return modified_time;
     }
 
     public void setModifiedTime(String modifiedTime) {
-        this.modifiedTime = modifiedTime;
+        this.modified_time = modifiedTime;
     }
 
-    public Boolean getEnabled() {
+    public Boolean isEnabled() {
         return enabled;
     }
 
-    public void setEnabled(Boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    public Boolean getTrace() {
+    public Boolean isTraced() {
         return trace;
     }
 
-    public void setTrace(Boolean trace) {
-        this.trace = trace;
-    }
 }

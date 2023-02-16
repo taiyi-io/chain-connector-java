@@ -282,6 +282,15 @@ public class ChainConnector {
             value = propertyValue;
         }
     }
+    private static class blockQueryRequest {
+        int from;
+        int to;
+
+        public blockQueryRequest(int from, int to) {
+            this.from = from;
+            this.to = to;
+        }
+    }
 
     private static class initialSignatureFormat {
         private String access;
@@ -455,32 +464,20 @@ public class ChainConnector {
         if (endHeight < beginHeight) {
             throw new Exception("end height " + endHeight + " must greater than begin height " + beginHeight);
         }
-
         String url = this.mapToDomain("/blocks/");
-
-        class Condition {
-            int from;
-            int to;
-
-            public Condition(int from, int to) {
-                this.from = from;
-                this.to = to;
-            }
-        }
-        Condition condition = new Condition(beginHeight, endHeight);
-
+        blockQueryRequest condition = new blockQueryRequest(beginHeight, endHeight);
         blockRecordsResponse resp = fetchResponseWithPayload(RequestMethod.POST, url, condition, blockRecordsResponse.class);
         return resp.getData();
     }
 
-    public blockDataResponse getBlock(String blockID) throws Exception {
+    public BlockData getBlock(String blockID) throws Exception {
         if (blockID == null || blockID.isEmpty()) {
             throw new Exception("block ID required");
         }
 
         final String url = mapToDomain("/blocks/" + blockID);
         blockDataResponse resp = fetchResponse(RequestMethod.GET, url, blockDataResponse.class);
-        return resp;
+        return resp.getData();
     }
 
     /**

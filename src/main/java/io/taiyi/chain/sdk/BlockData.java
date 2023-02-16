@@ -3,7 +3,7 @@ package io.taiyi.chain.sdk;
 public class BlockData {
     private String id;
     private String timestamp;
-    private String previousBlock;
+    private String previous_block;
     private int height;
     private int transactions;
     private String content;
@@ -25,11 +25,11 @@ public class BlockData {
     }
 
     public String getPreviousBlock() {
-        return previousBlock;
+        return previous_block;
     }
 
     public void setPreviousBlock(String previousBlock) {
-        this.previousBlock = previousBlock;
+        this.previous_block = previousBlock;
     }
 
     public int getHeight() {
