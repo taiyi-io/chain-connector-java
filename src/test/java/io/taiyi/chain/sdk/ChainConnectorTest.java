@@ -13,9 +13,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class ChainConnectorTest {
-//    final static String host = "192.168.3.47";
+    final static String host = "192.168.3.47";
 
-    final static String host = "192.168.25.223";
+//    final static String host = "192.168.25.223";
     final static int port = 9100;
     final static String AccessFilename = "access_key.json";
     final static Gson objectMarshaller = new GsonBuilder().setPrettyPrinting().create();
@@ -407,12 +407,48 @@ class ChainConnectorTest {
         {
             conn.updateSchemaActors(schemaName, actorConfigure);
             List<ActorPrivileges> updatedActors = conn.getSchemaActors(schemaName);
-            if (!objectMarshaller.toJson(updatedActors).equals(objectMarshaller.toJson(privileges))){
+            if (!objectMarshaller.toJson(updatedActors).equals(objectMarshaller.toJson(privileges))) {
                 throw new Exception("actors mismatch on schema");
             }
             System.out.printf("update schema actors success, current actors: \n%s\n",
                     objectMarshaller.toJson(updatedActors));
 
         }
+        {
+            String content = "{\"name\": \"hello\", \"age\": 20, \"available\": true}";
+            String docID = conn.addDocument(schemaName, "", content);
+            System.out.printf("test doc %s added", docID);
+            conn.updateDocumentActors(schemaName, docID, actorConfigure);
+            List<ActorPrivileges> updatedActors = conn.getDocumentActors(schemaName, docID);
+            if (!objectMarshaller.toJson(updatedActors).equals(objectMarshaller.toJson(privileges))) {
+                throw new Exception("actors mismatch on document");
+            }
+            System.out.printf("update document actors success, current actors: \n%s\n",
+                    objectMarshaller.toJson(updatedActors));
+        }
+        {
+            final String contractName = schemaName;
+            List<ContractStep> steps = new ArrayList<>();
+            steps.add(new ContractStep("delete_doc", new String[]{"@1", "@2"}));
+            steps.add(new ContractStep("submit"));
+            ContractDefine contractDefine = new ContractDefine(steps);
+            if (conn.hasContract(contractName)) {
+                conn.withdrawContract(contractName);
+                System.out.printf("previous contract %s removed\n", contractName);
+            }
+            conn.deployContract(contractName, contractDefine);
+            System.out.printf("contract %s deployed\n", contractName);
+
+            conn.updateContractActors(contractName, actorConfigure);
+            List<ActorPrivileges> updatedActors = conn.getContractActors(contractName);
+            if (!objectMarshaller.toJson(updatedActors).equals(objectMarshaller.toJson(privileges))) {
+                throw new Exception("actors mismatch on document");
+            }
+            System.out.printf("contract document actors success, current actors: \n%s\n",
+                    objectMarshaller.toJson(updatedActors));
+            conn.withdrawContract(contractName);
+        }
+        conn.deleteSchema(schemaName);
+        System.out.println("test actor functions: pass");
     }
 }

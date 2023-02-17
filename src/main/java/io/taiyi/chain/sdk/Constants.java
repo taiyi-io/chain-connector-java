@@ -1,7 +1,7 @@
 package io.taiyi.chain.sdk;
 
 public class Constants {
-    public static final String SDK_VERSION = "0.4.0";
+    public static final String SDK_VERSION = "0.2.0";
     public static final String API_VERSION = "1";
     public static final String PROJECT_NAME = "Paimon";
     public static final String HEADER_NAME_SESSION = PROJECT_NAME + "-Session";
