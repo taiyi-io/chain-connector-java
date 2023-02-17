@@ -13,9 +13,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.fail;
 
 class ChainConnectorTest {
-    final static String host = "192.168.3.47";
+//    final static String host = "192.168.3.47";
 
-    //    final static String host = "192.168.25.223";
+    final static String host = "192.168.25.223";
     final static int port = 9100;
     final static String AccessFilename = "access_key.json";
     final static Gson objectMarshaller = new GsonBuilder().setPrettyPrinting().create();
@@ -67,11 +67,11 @@ class ChainConnectorTest {
     void testSchemas() throws Exception {
         ChainConnector conn = getConnector();
         SchemaRecords records = conn.querySchemas(0, 5);
-        if (null != records.getSchemas()){
-            for (String schemaName: records.getSchemas()){
+        if (null != records.getSchemas()) {
+            for (String schemaName : records.getSchemas()) {
                 System.out.printf("query returned schema %s\n", schemaName);
             }
-        }else{
+        } else {
             System.out.println("no schema return by querying");
         }
 
@@ -105,7 +105,7 @@ class ChainConnectorTest {
         }
         {
             LogRecords logs = conn.getSchemaLog(schemaName);
-            for (TraceLog log: logs.getLogs()){
+            for (TraceLog log : logs.getLogs()) {
                 System.out.printf("Log v%d generated at %s by %s when %s, confirmed: %b\n", log.getVersion(),
                         log.getTimestamp(), log.getInvoker(), log.getOperate(), log.isConfirmed());
             }
@@ -180,7 +180,7 @@ class ChainConnectorTest {
             System.out.println("property age of doc " + docID + " updated");
             {
                 LogRecords logs = conn.getDocumentLogs(schemaName, docID);
-                for (TraceLog log: logs.getLogs()){
+                for (TraceLog log : logs.getLogs()) {
                     System.out.printf("Log v%d generated at %s by %s when %s, confirmed: %b\n", log.getVersion(),
                             log.getTimestamp(), log.getInvoker(), log.getOperate(), log.isConfirmed());
                 }
@@ -316,18 +316,18 @@ class ChainConnectorTest {
                 docID,
                 schemaName,
                 String.valueOf(Math.random()),
-                String.valueOf((int)(Math.random() * 1000)),
+                String.valueOf((int) (Math.random() * 1000)),
                 Math.random() > 0.5 ? "true" : "false",
                 String.format("%.2f", Math.random() * 200)
         };
         ContractInfo info = conn.getContractInfo(createContractName);
-        if (!info.isEnabled()){
+        if (!info.isEnabled()) {
             conn.enableContractTrace(createContractName);
             System.out.printf("trace of contract %s enabled\n", createContractName);
         }
         conn.callContract(createContractName, new ArrayList<>(Arrays.asList(parameters)));
         conn.callContract(deleteContractName, new ArrayList<>(Arrays.asList(schemaName, docID)));
-        if (!info.isEnabled()){
+        if (!info.isEnabled()) {
             conn.disableContractTrace(createContractName);
             System.out.printf("trace of contract %s disabled\n", createContractName);
         }
@@ -374,6 +374,45 @@ class ChainConnectorTest {
         }
 
         System.out.println("chain interfaces tested");
+    }
 
+    @Test
+    void testActors() throws Exception {
+        String schemaName = "js-test-case5-actors";
+        ChainConnector conn = getConnector();
+        System.out.println("actor test begin...");
+        {
+            if (conn.hasSchema(schemaName)) {
+                conn.deleteSchema(schemaName);
+                System.out.println("previous schema " + schemaName + " deleted");
+            }
+            DocumentProperty[] properties = {
+                    new DocumentProperty("name", PropertyType.String),
+                    new DocumentProperty("age", PropertyType.Integer),
+                    new DocumentProperty("available", PropertyType.Boolean)
+            };
+            conn.createSchema(schemaName, Arrays.asList(properties));
+            DocumentSchema schema = conn.getSchema(schemaName);
+            System.out.printf("schema %s created:\n%s\n", schemaName, objectMarshaller.toJson(schema));
+        }
+        List<ActorPrivileges> actors = conn.getSchemaActors(schemaName);
+        System.out.printf("actors of schema %s:\n%s\n", schemaName, objectMarshaller.toJson(actors));
+        String currentGroup = actors.get(0).getGroup();
+        ActorPrivileges[] privileges = {
+                new ActorPrivileges(currentGroup, true, true, true, true),
+                new ActorPrivileges("audit", false, false, false, true),
+                new ActorPrivileges("runner", false, true, true, true),
+        };
+        List<ActorPrivileges> actorConfigure = Arrays.asList(privileges);
+        {
+            conn.updateSchemaActors(schemaName, actorConfigure);
+            List<ActorPrivileges> updatedActors = conn.getSchemaActors(schemaName);
+            if (!objectMarshaller.toJson(updatedActors).equals(objectMarshaller.toJson(privileges))){
+                throw new Exception("actors mismatch on schema");
+            }
+            System.out.printf("update schema actors success, current actors: \n%s\n",
+                    objectMarshaller.toJson(updatedActors));
+
+        }
     }
 }

@@ -7,6 +7,13 @@ public class ActorPrivileges {
     private boolean updater;
     private boolean viewer;
 
+    public ActorPrivileges(String groupName, boolean isOwner, boolean isExecutor, boolean isUpdater, boolean isViewer){
+        group = groupName;
+        owner = isOwner;
+        executor = isExecutor;
+        updater = isUpdater;
+        viewer = isViewer;
+    }
     public String getGroup() {
         return group;
     }
