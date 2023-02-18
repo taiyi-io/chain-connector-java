@@ -71,8 +71,8 @@ String docID = conn.addDocument(schemaName, "", content);
 //check a document
 if (conn.hasDocument(schemaName, docID)){
 	//update a existed document
-    String Updated = "{\"name\": \"alice\", \"age\": 18, \"available\": false}";
-    conn.updateDocument(schemaName, docID, content);
+    String updatedContent = "{\"name\": \"alice\", \"age\": 18, \"available\": false}";
+    conn.updateDocument(schemaName, docID, updatedContent);
 }
 
 //get change trace of a document
