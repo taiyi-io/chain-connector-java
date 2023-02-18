@@ -10,7 +10,7 @@ The Java language SDK for accessing and operating on blockchain platforms is bas
 
 The project is managed based on Apache Maven.
 
-###编译 Compile
+### 编译 Compile
 
 ```
 $mvn compile
@@ -62,8 +62,6 @@ properties.add(new DocumentProperty("available", PropertyType.Boolean));
 conn.createSchema(schemaName, properties);
 DocumentSchema schema = conn.getSchema(schemaName);
 
-
-
 //add a document
 String content = "{\"name\": \"hello\", \"age\": 20, \"available\": true}";
 String docID = conn.addDocument(schemaName, "", content);
@@ -89,6 +87,7 @@ DocumentRecords records = conn.queryDocuments(schemaName, condition);
 
 //remove document
 conn.removeDocument(schemaName, docID);
+
 ```
 
 
@@ -143,6 +142,7 @@ String[] parameters = {
 
 //call contract with parameters
 conn.callContract(createContractName, new ArrayList<>(Arrays.asList(parameters)));
+
 ```
 
 
@@ -169,5 +169,6 @@ for (String blockID : blockRecords.getBlocks()) {
         TransactionData transactionData = conn.getTransaction(blockID, transID);
     }
 }
+
 ```
 
