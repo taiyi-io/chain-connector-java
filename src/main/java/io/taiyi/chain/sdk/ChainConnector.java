@@ -311,6 +311,12 @@ public class ChainConnector {
     }
 
     final private static int requiredPrivateKeyLength = 32;
+
+    final private String SDK_VERSION = "0.2.1";
+    private String headerNameSession;
+    private String headerNameTimestamp;
+    private String headerNameSignature;
+    private String headerNameSignatureAlgorithm;
     private final String _accessID;
     private final PrivateKey _privateKey;
     private String _apiBase;
@@ -358,10 +364,11 @@ public class ChainConnector {
         this._localIP = "";
         this._client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build();
         _privateKey = generatePrivateKey(privateKey);
+        setProject(Constants.DEFAULT_PROJECT_NAME);
     }
 
     public String getVersion() {
-        return Constants.SDK_VERSION;
+        return SDK_VERSION;
     }
 
     public String getSessionID() {
@@ -384,6 +391,12 @@ public class ChainConnector {
         this._requestTimeout = timeoutInSeconds * 1000;
     }
 
+    public void setProject(String projectName) {
+        headerNameSession = projectName + "-Session";
+        headerNameTimestamp = projectName + "-Timestamp";
+        headerNameSignature = projectName + "-Signature";
+        headerNameSignatureAlgorithm = projectName + "-SignatureAlgorithm";
+    }
     public void connect(String host, int port) throws Exception {
         connectToDomain(host, port, Constants.DEFAULT_DOMAIN_NAME);
     }
@@ -423,9 +436,9 @@ public class ChainConnector {
         requestPayload.nonce = _nonce;
 
         ArrayList<Pair<String, String>> headers = new ArrayList<>();
-        headers.add(Pair.of(Constants.HEADER_NAME_TIMESTAMP, timestamp));
-        headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE_ALGORITHM, signatureAlgorithm));
-        headers.add(Pair.of(Constants.HEADER_NAME_SIGNATURE, signature));
+        headers.add(Pair.of(headerNameTimestamp, timestamp));
+        headers.add(Pair.of(headerNameSignatureAlgorithm, signatureAlgorithm));
+        headers.add(Pair.of(headerNameSignature, signature));
         sessionResponse resp = rawRequest(RequestMethod.POST, "/sessions/", headers,
                 requestPayload, sessionResponse.class);
 
@@ -1110,10 +1123,10 @@ public class ChainConnector {
         builder.headers(
                 "Pragma", "no-cache",
                 "Cache-Control", "no-cache",
-                Constants.HEADER_NAME_SESSION, _sessionID,
-                Constants.HEADER_NAME_TIMESTAMP, timestamp,
-                Constants.HEADER_NAME_SIGNATURE_ALGORITHM, Constants.SIGNATURE_METHOD_ED25519,
-                Constants.HEADER_NAME_SIGNATURE, signature);
+                headerNameSession, _sessionID,
+                headerNameTimestamp, timestamp,
+                headerNameSignatureAlgorithm, Constants.SIGNATURE_METHOD_ED25519,
+                headerNameSignature, signature);
 
         return builder.build();
     }
