@@ -1,5 +1,11 @@
 # Change log of chain connector SDK
 
+## [0.2.2] - 2023-04-25
+
+### Fixed
+
+- exception on getDocument
+- 
 ## [0.2.1] - 2023-02-25
 
 ### Added

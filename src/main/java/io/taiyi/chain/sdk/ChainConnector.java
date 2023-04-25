@@ -113,9 +113,9 @@ public class ChainConnector {
     }
 
     private static class documentResponse extends responseBase {
-        private String data;
+        private Document data;
 
-        public String getData() {
+        public Document getData() {
             return data;
         }
     }
@@ -312,7 +312,7 @@ public class ChainConnector {
 
     final private static int requiredPrivateKeyLength = 32;
 
-    final private String SDK_VERSION = "0.2.1";
+    final private String SDK_VERSION = "0.2.2";
     private String headerNameSession;
     private String headerNameTimestamp;
     private String headerNameSignature;
@@ -693,7 +693,7 @@ public class ChainConnector {
         }
         final String url = mapToDomain("/schemas/" + schemaName + "/docs/" + docID);
         documentResponse resp = fetchResponse(RequestMethod.GET, url, documentResponse.class);
-        return resp.getData();
+        return resp.getData().getContent();
     }
 
     /**

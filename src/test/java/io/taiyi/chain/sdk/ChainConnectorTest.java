@@ -202,6 +202,7 @@ class ChainConnectorTest {
                     content = objectMarshaller.toJson(new testDocumentsPayload(0, true));
                 }
                 conn.updateDocument(schemaName, docID, content);
+                conn.getDocument(schemaName, docID);
                 System.out.println("doc " + docID + " updated");
             }
             for (var i = 0; i < docCount; i++) {
